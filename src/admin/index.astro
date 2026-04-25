@@ -1,0 +1,12 @@
+---
+import Layout from './layout.astro'
+// Config is injected by the integration via virtual module
+const config = (await import('virtual:astro-cms/config')).default
+const firstCollection = Object.keys(config.collections)[0]
+if (firstCollection) {
+  return Astro.redirect(`/admin/${firstCollection}`)
+}
+---
+<Layout config={config} title="Dashboard">
+  <p>No collections defined yet. Run <code>astro-cms init</code> to get started.</p>
+</Layout>

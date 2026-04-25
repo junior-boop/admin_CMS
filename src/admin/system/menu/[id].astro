@@ -1,0 +1,164 @@
+---
+import Layout from '../../layout.astro'
+import { createSystemClient } from '../../../system/client.js'
+
+const config = (await import('virtual:astro-cms/config')).default
+const env = (Astro.locals as { runtime?: { env: Record<string, unknown> } }).runtime?.env ?? {}
+const db = env['DB'] as D1Database
+const system = createSystemClient(db)
+
+const { id } = Astro.params as { id: string }
+const menuId = parseInt(id, 10)
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData()
+  const action = form.get('_action') as string
+
+  if (action === 'addItem') {
+    const label = (form.get('label') as string).trim()
+    const url = (form.get('url') as string).trim()
+    const target = (form.get('target') as '_self' | '_blank') ?? '_self'
+    const className = (form.get('class_name') as string | null)?.trim() || null
+    const parentIdRaw = form.get('parent_id') as string
+    const parentId = parentIdRaw ? parseInt(parentIdRaw, 10) : undefined
+    const order = parseInt(form.get('order') as string || '0', 10)
+    if (label && url) {
+      await system.menu.addItem(menuId, { label, url, target, className, order, parentId })
+    }
+  }
+
+  if (action === 'deleteItem') {
+    const itemId = parseInt(form.get('item_id') as string, 10)
+    await system.menu.deleteItem(itemId)
+  }
+
+  return Astro.redirect(`/admin/system/menu/${id}`)
+}
+
+const menuData = await db.prepare('SELECT * FROM cms_menus WHERE id = ?').bind(menuId).first<{ id: number; name: string; slug: string }>()
+if (!menuData) return new Response('Menu not found', { status: 404 })
+
+const items = await db
+  .prepare('SELECT * FROM cms_menu_items WHERE menu_id = ? ORDER BY order_index')
+  .bind(menuId).all<{ id: number; label: string; url: string; target: string; class_name: string | null; order_index: number; parent_id: number | null }>()
+const menuItems = items.results
+---
+
+<Layout config={config} title={`Menu: ${menuData.name}`} activeSystem="menu">
+  <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px">
+    <a href="/admin/system/menu" style="color:#6b7280; font-size:13px; text-decoration:none">← Menus</a>
+    <h1 style="font-size:20px; font-weight:600">{menuData.name}</h1>
+    <span style="font-size:12px; color:#9ca3af; font-family:monospace">/{menuData.slug}</span>
+  </div>
+
+  <!-- Add item form -->
+  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:24px">
+    <p style="font-size:13px; font-weight:500; color:#374151; margin-bottom:12px">Ajouter un item</p>
+    <form method="POST" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px">
+      <input type="hidden" name="_action" value="addItem" />
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Label *</label>
+        <input type="text" name="label" required placeholder="ex: Accueil"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">URL *</label>
+        <input type="text" name="url" required placeholder="ex: /about"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Ouverture</label>
+        <select name="target"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; background:#fff">
+          <option value="_self">Même onglet</option>
+          <option value="_blank">Nouvel onglet</option>
+        </select>
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Parent</label>
+        <select name="parent_id"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; background:#fff">
+          <option value="">— Aucun —</option>
+          {menuItems.map((item) => (
+            <option value={String(item.id)}>{item.label}</option>
+          ))}
+        </select>
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Class CSS</label>
+        <input type="text" name="class_name" placeholder="ex: btn-primary active"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:monospace" />
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Ordre</label>
+        <input type="number" name="order" value="0" min="0"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div style="display:flex; align-items:flex-end">
+        <button type="submit"
+          style="width:100%; padding:8px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer">
+          + Ajouter
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Items list -->
+  {menuItems.length === 0 ? (
+    <div style="text-align:center; padding:60px; color:#9ca3af">
+      <p style="font-size:16px">Aucun item dans ce menu.</p>
+    </div>
+  ) : (
+    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
+      <table style="width:100%; border-collapse:collapse; font-size:14px">
+        <thead>
+          <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb">
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Label</th>
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">URL</th>
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Class CSS</th>
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Cible</th>
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Ordre</th>
+            <th style="padding:10px 16px; text-align:right; font-weight:500; color:#6b7280">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {menuItems.map((item) => {
+            const parent = menuItems.find(i => i.id === item.parent_id)
+            return (
+              <tr style="border-bottom:1px solid #f3f4f6">
+                <td style="padding:10px 16px; font-weight:500">
+                  {item.parent_id && <span style="color:#d1d5db; margin-right:6px">└</span>}
+                  {item.label}
+                  {parent && <span style="font-size:12px; color:#9ca3af; font-weight:400; margin-left:6px">({parent.label})</span>}
+                </td>
+                <td style="padding:10px 16px; color:#6b7280; font-size:13px; font-family:monospace">{item.url}</td>
+                <td style="padding:10px 16px; font-size:12px; font-family:monospace; color:#6b7280">
+                  {item.class_name ?? <span style="color:#d1d5db">—</span>}
+                </td>
+                <td style="padding:10px 16px; color:#6b7280; font-size:13px">{item.target}</td>
+                <td style="padding:10px 16px; color:#9ca3af; font-size:13px">{item.order_index}</td>
+                <td style="padding:10px 16px; text-align:right">
+                  <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer cet item ?')">
+                    <input type="hidden" name="_action" value="deleteItem" />
+                    <input type="hidden" name="item_id" value={String(item.id)} />
+                    <button type="submit"
+                      style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
+                      Supprimer
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </div>
+  )}
+</Layout>

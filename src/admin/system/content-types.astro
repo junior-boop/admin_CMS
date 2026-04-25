@@ -1,0 +1,29 @@
+---
+import Layout from '../layout.astro'
+const config = (await import('virtual:astro-cms/config')).default
+---
+
+<Layout config={config} title="Content Types" activeSystem="content-types">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+    <h1 style="font-size:22px; font-weight:600">Content Types</h1>
+  </div>
+
+  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:40px; text-align:center; color:#6b7280">
+    <div style="font-size:32px; margin-bottom:12px">🗂</div>
+    <p style="font-size:16px; font-weight:500; color:#374151; margin-bottom:8px">Vos collections sont définies dans <code style="background:#f3f4f6; padding:2px 6px; border-radius:4px; font-size:14px">cms.config.ts</code></p>
+    <p style="font-size:14px; line-height:1.6; max-width:480px; margin:0 auto">
+      Modifiez ce fichier dans votre projet pour ajouter, modifier ou supprimer des collections.
+      Relancez ensuite <code style="background:#f3f4f6; padding:2px 6px; border-radius:4px">astro-cms generate</code> pour regénérer les migrations.
+    </p>
+
+    <div style="margin-top:28px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:20px; text-align:left; max-width:520px; margin-left:auto; margin-right:auto">
+      <p style="font-size:12px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px">Collections actives</p>
+      {Object.entries(config.collections).map(([name, col]) => (
+        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f3f4f6">
+          <span style="font-size:14px; font-weight:500">{name}</span>
+          <span style="font-size:12px; color:#9ca3af">{Object.keys(col.fields).length} champ{Object.keys(col.fields).length !== 1 ? 's' : ''}</span>
+        </div>
+      ))}
+    </div>
+  </div>
+</Layout>

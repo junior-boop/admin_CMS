@@ -1,0 +1,147 @@
+---
+import Layout from '../layout.astro'
+import { createSystemClient } from '../../system/client.js'
+
+const config = (await import('virtual:astro-cms/config')).default
+const env = (Astro.locals as { runtime?: { env: Record<string, unknown> } }).runtime?.env ?? {}
+const db = env['DB'] as D1Database
+const system = createSystemClient(db)
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData()
+  const action = form.get('_action') as string
+
+  if (action === 'create') {
+    const name = (form.get('name') as string).trim()
+    const area = (form.get('area') as string).trim()
+    const type = (form.get('type') as string).trim()
+    const order = parseInt(form.get('order') as string || '0', 10)
+    const contentRaw = (form.get('content') as string | null)?.trim()
+    let content: object | undefined
+    if (contentRaw) {
+      try { content = JSON.parse(contentRaw) } catch {}
+    }
+    if (name && area && type) {
+      await system.widgets.create({ name, area, type, order, content })
+    }
+  }
+
+  if (action === 'delete') {
+    const id = parseInt(form.get('id') as string, 10)
+    await system.widgets.delete(id)
+  }
+
+  return Astro.redirect('/admin/system/widgets')
+}
+
+const allWidgets = await db
+  .prepare('SELECT * FROM cms_widgets ORDER BY area, order_index')
+  .all<{ id: number; name: string; area: string; type: string; content: string | null; order_index: number }>()
+
+const widgets = allWidgets.results
+
+const byArea = widgets.reduce<Record<string, typeof widgets>>((acc, w) => {
+  if (!acc[w.area]) acc[w.area] = []
+  acc[w.area]!.push(w)
+  return acc
+}, {})
+---
+
+<Layout config={config} title="Widgets" activeSystem="widgets">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+    <h1 style="font-size:22px; font-weight:600">Widgets</h1>
+    <span style="font-size:13px; color:#9ca3af">{widgets.length} widget{widgets.length !== 1 ? 's' : ''}</span>
+  </div>
+
+  <!-- Create form -->
+  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:24px">
+    <p style="font-size:13px; font-weight:500; color:#374151; margin-bottom:12px">Nouveau widget</p>
+    <form method="POST" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px">
+      <input type="hidden" name="_action" value="create" />
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Nom *</label>
+        <input type="text" name="name" required placeholder="ex: Newsletter"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Zone *</label>
+        <input type="text" name="area" required placeholder="ex: sidebar"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Type *</label>
+        <input type="text" name="type" required placeholder="ex: html, rss, text"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Ordre</label>
+        <input type="number" name="order" value="0" min="0"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div style="grid-column:2/-1">
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Contenu (JSON optionnel)</label>
+        <input type="text" name="content" placeholder='ex: {"title":"Subscribe"}'
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:monospace" />
+      </div>
+
+      <div style="grid-column:1/-1; display:flex; justify-content:flex-end">
+        <button type="submit"
+          style="padding:8px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer">
+          + Ajouter
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Widgets list -->
+  {widgets.length === 0 ? (
+    <div style="text-align:center; padding:60px; color:#9ca3af">
+      <p style="font-size:16px">Aucun widget pour l'instant.</p>
+    </div>
+  ) : (
+    <div style="display:flex; flex-direction:column; gap:20px">
+      {Object.entries(byArea).map(([area, areaWidgets]) => (
+        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
+          <div style="background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:10px 16px">
+            <p style="font-size:13px; font-weight:600; color:#374151">
+              Zone: <span style="font-family:monospace; color:#2563eb">{area}</span>
+            </p>
+          </div>
+          <table style="width:100%; border-collapse:collapse; font-size:14px">
+            <tbody>
+              {areaWidgets.map((w) => (
+                <tr style="border-bottom:1px solid #f3f4f6">
+                  <td style="padding:10px 16px; font-weight:500">{w.name}</td>
+                  <td style="padding:10px 16px">
+                    <span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:500; background:#f3f4f6; color:#374151">
+                      {w.type}
+                    </span>
+                  </td>
+                  <td style="padding:10px 16px; color:#9ca3af; font-size:12px; font-family:monospace; max-width:280px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
+                    {w.content ?? ''}
+                  </td>
+                  <td style="padding:10px 16px; color:#9ca3af; font-size:13px; width:60px">#{w.order_index}</td>
+                  <td style="padding:10px 16px; text-align:right">
+                    <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer ce widget ?')">
+                      <input type="hidden" name="_action" value="delete" />
+                      <input type="hidden" name="id" value={String(w.id)} />
+                      <button type="submit"
+                        style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
+                        Supprimer
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  )}
+</Layout>

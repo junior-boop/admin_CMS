@@ -1,0 +1,196 @@
+---
+import type { CMSConfig } from '../config/types.js'
+
+interface Props {
+  config: CMSConfig
+  title: string
+  activeCollection?: string
+  activeSystem?: string
+}
+
+const { config, title, activeCollection, activeSystem } = Astro.props
+const collections = Object.entries(config.collections)
+const currentPath = Astro.url.pathname
+---
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{title} — CMS Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f9fafb;
+      color: #111827;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ─────────────────────────────────── */
+    .sidebar {
+      width: 200px;
+      min-height: 100vh;
+      background: #fff;
+      border-right: 1px solid #e5e7eb;
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+
+    .sidebar-brand {
+      padding: 20px 16px 16px;
+      font-size: 15px;
+      font-weight: 700;
+      color: #111827;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+
+    .nav-section-label {
+      padding: 10px 16px 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+
+    .nav-link {
+      display: block;
+      padding: 7px 16px;
+      font-size: 14px;
+      color: #374151;
+      text-decoration: none;
+      border-radius: 0;
+      transition: background 0.1s;
+    }
+
+    .nav-link:hover { background: #f3f4f6; }
+
+    .nav-link.active {
+      background: #f0f4ff;
+      color: #2563eb;
+      font-weight: 500;
+    }
+
+    /* ── Main ────────────────────────────────────── */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .topbar {
+      height: 56px;
+      background: #fff;
+      border-bottom: 1px solid #e5e7eb;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 28px;
+    }
+
+    .topbar-title {
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    .topbar-user {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #6b7280;
+    }
+
+    .topbar-user svg {
+      width: 28px; height: 28px;
+      stroke: #9ca3af;
+    }
+
+    .content { flex: 1; padding: 32px 28px; }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">Simple-cms</div>
+
+    <nav class="sidebar-nav">
+
+      <!-- Contenu: Media (built-in) + user collections -->
+      <div class="nav-section-label">Contenu</div>
+      <a href="/admin/media"
+         class:list={['nav-link', { active: activeSystem === 'media' }]}>
+        Media
+      </a>
+      {collections.map(([name]) => (
+        <a href={`/admin/${name}`}
+           class:list={['nav-link', { active: activeCollection === name }]}>
+          {name.charAt(0).toUpperCase() + name.slice(1)}
+        </a>
+      ))}
+
+      <!-- Gestion: system collections -->
+      <div class="nav-section-label" style="margin-top:12px">Gestion</div>
+      {[
+        { slug: 'comments', label: 'Comments' },
+        { slug: 'menu',     label: 'Menu' },
+        { slug: 'sections', label: 'Sections' },
+        { slug: 'widgets',  label: 'Widgets' },
+        { slug: 'tags',     label: 'Tags' },
+        { slug: 'categories', label: 'Categories' },
+      ].map(({ slug, label }) => (
+        <a href={`/admin/system/${slug}`}
+           class:list={['nav-link', { active: activeSystem === slug }]}>
+          {label}
+        </a>
+      ))}
+
+      <!-- Admin -->
+      <div class="nav-section-label" style="margin-top:12px">Admin</div>
+      <a href="/admin/system/content-types"
+         class:list={['nav-link', { active: activeSystem === 'content-types' }]}>
+        Content Type
+      </a>
+      <a href="/admin/system/users"
+         class:list={['nav-link', { active: activeSystem === 'users' }]}>
+        Users
+      </a>
+      <a href="/admin/system/settings"
+         class:list={['nav-link', { active: activeSystem === 'settings' }]}>
+        Settings
+      </a>
+
+    </nav>
+  </aside>
+
+  <!-- Main area -->
+  <div class="main">
+    <header class="topbar">
+      <span class="topbar-title">{title}</span>
+      <div class="topbar-user">
+        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
+          <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+        </svg>
+        Admin
+        <a href="/admin/logout" style="font-size:13px; color:#6b7280; text-decoration:none; margin-left:12px; padding:4px 10px; border:1px solid #e5e7eb; border-radius:5px;">
+          Déconnexion
+        </a>
+      </div>
+    </header>
+
+    <main class="content">
+      <slot />
+    </main>
+  </div>
+
+</body>
+</html>

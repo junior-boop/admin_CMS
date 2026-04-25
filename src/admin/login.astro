@@ -1,0 +1,139 @@
+---
+const env = (Astro.locals as { runtime?: { env: Record<string, unknown> } }).runtime?.env ?? {}
+const adminPassword = env['ADMIN_PASSWORD'] as string | undefined
+
+// No password configured → skip auth
+if (!adminPassword) return Astro.redirect('/admin')
+
+// Already logged in?
+const existing = Astro.cookies.get('cms_admin_session')?.value
+if (existing && await verifyToken(existing, adminPassword)) {
+  return Astro.redirect('/admin')
+}
+
+let error = ''
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData()
+  const password = (form.get('password') as string | null) ?? ''
+
+  if (password === adminPassword) {
+    const token = await createToken(adminPassword)
+    Astro.cookies.set('cms_admin_session', token, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/admin',
+      maxAge: 24 * 60 * 60,
+      secure: Astro.url.protocol === 'https:',
+    })
+    return Astro.redirect('/admin')
+  }
+
+  error = 'Mot de passe incorrect.'
+}
+
+// ─── HMAC helpers ─────────────────────────────────────────────────────────────
+
+async function hmac(data: string, secret: string): Promise<string> {
+  const key = await crypto.subtle.importKey(
+    'raw', new TextEncoder().encode(secret),
+    { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']
+  )
+  const buf = await crypto.subtle.sign('HMAC', key, new TextEncoder().encode(data))
+  return btoa(String.fromCharCode(...new Uint8Array(buf)))
+}
+
+async function createToken(password: string): Promise<string> {
+  const payload = btoa(String(Date.now()))
+  const sig = await hmac(payload, password)
+  return `${payload}.${sig}`
+}
+
+async function verifyToken(token: string, password: string): Promise<boolean> {
+  const dot = token.lastIndexOf('.')
+  if (dot === -1) return false
+  const payload = token.slice(0, dot)
+  const sig = token.slice(dot + 1)
+  try {
+    if (await hmac(payload, password) !== sig) return false
+    const ts = parseInt(atob(payload), 10)
+    return Date.now() - ts < 24 * 60 * 60 * 1000
+  } catch {
+    return false
+  }
+}
+---
+
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Connexion — CMS Admin</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f9fafb;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+    }
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+      padding: 40px;
+      width: 100%;
+      max-width: 380px;
+    }
+    .brand { font-size: 18px; font-weight: 700; color: #111827; margin-bottom: 6px; }
+    .subtitle { font-size: 14px; color: #9ca3af; margin-bottom: 28px; }
+    label { display: block; font-size: 13px; font-weight: 500; color: #374151; margin-bottom: 6px; }
+    input[type="password"] {
+      width: 100%;
+      padding: 9px 12px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input[type="password"]:focus { border-color: #2563eb; }
+    .error {
+      background: #fee2e2; color: #991b1b;
+      border-radius: 6px; padding: 8px 12px;
+      font-size: 13px; margin-bottom: 16px;
+    }
+    button {
+      width: 100%;
+      margin-top: 16px;
+      padding: 10px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+    }
+    button:hover { background: #1d4ed8; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">Simple-cms</div>
+    <div class="subtitle">Connexion à l'administration</div>
+
+    {error && <div class="error">{error}</div>}
+
+    <form method="POST">
+      <label for="password">Mot de passe</label>
+      <input type="password" id="password" name="password" required autofocus
+        placeholder="••••••••" />
+      <button type="submit">Se connecter</button>
+    </form>
+  </div>
+</body>
+</html>

@@ -1,0 +1,73 @@
+---
+import Layout from '../layout.astro'
+const config = (await import('virtual:astro-cms/config')).default
+const env = (Astro.locals as { runtime?: { env: Record<string, unknown> } }).runtime?.env ?? {}
+---
+
+<Layout config={config} title="Settings" activeSystem="settings">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+    <h1 style="font-size:22px; font-weight:600">Paramètres</h1>
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:16px; max-width:640px">
+
+    <!-- Package info -->
+    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px">
+      <p style="font-size:13px; font-weight:600; color:#374151; margin-bottom:16px">Informations du package</p>
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <div style="display:flex; justify-content:space-between; font-size:14px">
+          <span style="color:#6b7280">Package</span>
+          <code style="background:#f3f4f6; padding:2px 8px; border-radius:4px; font-size:13px">@geniusofdigital/astro-cms</code>
+        </div>
+        <div style="display:flex; justify-content:space-between; font-size:14px">
+          <span style="color:#6b7280">Collections définies</span>
+          <span style="font-weight:500">{Object.keys(config.collections).length}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bindings status -->
+    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px">
+      <p style="font-size:13px; font-weight:600; color:#374151; margin-bottom:16px">Bindings Cloudflare</p>
+      <div style="display:flex; flex-direction:column; gap:10px">
+        {[
+          { name: 'D1 Database (DB)',  key: 'DB',     required: true },
+          { name: 'R2 Bucket (BUCKET)', key: 'BUCKET', required: false },
+          { name: 'KV Namespace (KV)', key: 'KV',     required: false },
+        ].map(({ name, key, required }) => {
+          const present = Boolean(env[key])
+          return (
+            <div style="display:flex; justify-content:space-between; align-items:center; font-size:14px">
+              <span style="color:#6b7280">
+                {name}
+                {required && <span style="color:#ef4444; margin-left:4px">*</span>}
+              </span>
+              <span style={`font-size:12px; font-weight:500; padding:2px 10px; border-radius:4px;
+                ${present ? 'background:#d1fae5; color:#065f46' : 'background:#f3f4f6; color:#9ca3af'}`}>
+                {present ? 'Connecté' : 'Non configuré'}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+
+    <!-- Auth status -->
+    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px">
+      <p style="font-size:13px; font-weight:600; color:#374151; margin-bottom:16px">Authentification</p>
+      <div style="display:flex; justify-content:space-between; align-items:center; font-size:14px">
+        <span style="color:#6b7280">ADMIN_PASSWORD</span>
+        {env['ADMIN_PASSWORD'] ? (
+          <span style="font-size:12px; font-weight:500; padding:2px 10px; border-radius:4px; background:#d1fae5; color:#065f46">
+            Configuré
+          </span>
+        ) : (
+          <span style="font-size:12px; font-weight:500; padding:2px 10px; border-radius:4px; background:#fef3c7; color:#92400e">
+            Non configuré — accès libre
+          </span>
+        )}
+      </div>
+    </div>
+
+  </div>
+</Layout>

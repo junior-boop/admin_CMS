@@ -1,0 +1,150 @@
+---
+import Layout from '../layout.astro'
+import { createSystemClient } from '../../system/client.js'
+import type { SectionType } from '../../system/types.js'
+
+const config = (await import('virtual:astro-cms/config')).default
+const env = (Astro.locals as { runtime?: { env: Record<string, unknown> } }).runtime?.env ?? {}
+const db = env['DB'] as D1Database
+const system = createSystemClient(db)
+
+const SECTION_TYPES: SectionType[] = ['hero', 'text', 'gallery', 'cta', 'custom']
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData()
+  const action = form.get('_action') as string
+
+  if (action === 'create') {
+    const page = (form.get('page') as string).trim()
+    const type = form.get('type') as SectionType
+    const title = (form.get('title') as string | null)?.trim() || undefined
+    const content = (form.get('content') as string | null)?.trim() || undefined
+    const order = parseInt(form.get('order') as string || '0', 10)
+    if (page && type) {
+      await system.sections.create({ page, type, title, content, order })
+    }
+  }
+
+  if (action === 'delete') {
+    const id = parseInt(form.get('id') as string, 10)
+    await system.sections.delete(id)
+  }
+
+  return Astro.redirect('/admin/system/sections')
+}
+
+const allSections = await db
+  .prepare('SELECT * FROM cms_sections ORDER BY page, order_index')
+  .all<{ id: number; page: string; type: string; title: string | null; content: string | null; order_index: number }>()
+
+const sections = allSections.results
+
+// Group by page
+const byPage = sections.reduce<Record<string, typeof sections>>((acc, s) => {
+  if (!acc[s.page]) acc[s.page] = []
+  acc[s.page]!.push(s)
+  return acc
+}, {})
+---
+
+<Layout config={config} title="Sections" activeSystem="sections">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+    <h1 style="font-size:22px; font-weight:600">Sections</h1>
+    <span style="font-size:13px; color:#9ca3af">{sections.length} section{sections.length !== 1 ? 's' : ''}</span>
+  </div>
+
+  <!-- Create form -->
+  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:24px">
+    <p style="font-size:13px; font-weight:500; color:#374151; margin-bottom:12px">Nouvelle section</p>
+    <form method="POST" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px">
+      <input type="hidden" name="_action" value="create" />
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Page *</label>
+        <input type="text" name="page" required placeholder="ex: home"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Type *</label>
+        <select name="type" required
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; background:#fff">
+          {SECTION_TYPES.map(t => <option value={t}>{t}</option>)}
+        </select>
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Ordre</label>
+        <input type="number" name="order" value="0" min="0"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Titre</label>
+        <input type="text" name="title" placeholder="Optionnel"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div style="grid-column:2/-1">
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Contenu</label>
+        <input type="text" name="content" placeholder="Optionnel"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div style="grid-column:1/-1; display:flex; justify-content:flex-end">
+        <button type="submit"
+          style="padding:8px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer">
+          + Ajouter
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Sections list -->
+  {sections.length === 0 ? (
+    <div style="text-align:center; padding:60px; color:#9ca3af">
+      <p style="font-size:16px">Aucune section pour l'instant.</p>
+    </div>
+  ) : (
+    <div style="display:flex; flex-direction:column; gap:20px">
+      {Object.entries(byPage).map(([page, pageSections]) => (
+        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
+          <div style="background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:10px 16px">
+            <p style="font-size:13px; font-weight:600; color:#374151">
+              Page: <span style="font-family:monospace; color:#2563eb">{page}</span>
+            </p>
+          </div>
+          <table style="width:100%; border-collapse:collapse; font-size:14px">
+            <tbody>
+              {pageSections.map((s) => (
+                <tr style="border-bottom:1px solid #f3f4f6">
+                  <td style="padding:10px 16px; width:80px">
+                    <span style="
+                      display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:500;
+                      background:#f0f4ff; color:#2563eb
+                    ">{s.type}</span>
+                  </td>
+                  <td style="padding:10px 16px; font-weight:500">{s.title ?? <span style="color:#d1d5db">Sans titre</span>}</td>
+                  <td style="padding:10px 16px; color:#9ca3af; font-size:13px; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
+                    {s.content ?? ''}
+                  </td>
+                  <td style="padding:10px 16px; color:#9ca3af; font-size:13px; width:60px">#{s.order_index}</td>
+                  <td style="padding:10px 16px; text-align:right">
+                    <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer cette section ?')">
+                      <input type="hidden" name="_action" value="delete" />
+                      <input type="hidden" name="id" value={String(s.id)} />
+                      <button type="submit"
+                        style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
+                        Supprimer
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ))}
+    </div>
+  )}
+</Layout>

@@ -1,0 +1,1 @@
+{"version":3,"file":"integration.d.ts","sourceRoot":"","sources":["../../src/astro/integration.ts"],"names":[],"mappings":"AAAA,OAAO,KAAK,EAAE,gBAAgB,EAAE,MAAM,OAAO,CAAA;AAC7C,OAAO,KAAK,EAAE,SAAS,EAAE,MAAM,oBAAoB,CAAA;AAUnD,wBAAgB,GAAG,CAAC,MAAM,EAAE,SAAS,GAAG,gBAAgB,CAwEvD"}

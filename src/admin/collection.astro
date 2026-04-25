@@ -1,0 +1,95 @@
+---
+import Layout from './layout.astro'
+import { createCMSClient } from '../runtime/client.js'
+import { createSystemClient } from '../system/client.js'
+
+const config = (await import('virtual:astro-cms/config')).default
+const { collection } = Astro.params as { collection: string }
+
+if (!config.collections[collection]) {
+  return new Response('Not found', { status: 404 })
+}
+
+const env = (Astro.locals as { runtime?: { env: Record<string, unknown> } }).runtime?.env ?? {}
+const db = env['DB'] as D1Database
+const cms = createCMSClient(config, { db })
+
+// Handle POST actions from forms
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData()
+  const action = form.get('_action') as string
+
+  if (action === 'delete') {
+    const id = parseInt(form.get('id') as string, 10)
+    await cms[collection]!.delete(id)
+    return Astro.redirect(`/admin/${collection}`)
+  }
+}
+
+const entries = await cms[collection]!.find({ limit: 50 })
+const collectionDef = config.collections[collection]!
+const fields = Object.keys(collectionDef.fields)
+const label = collection.charAt(0).toUpperCase() + collection.slice(1)
+---
+
+<Layout config={config} title={label} activeCollection={collection}>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+    <h1 style="font-size:22px; font-weight:600">{label}</h1>
+    <a href={`/admin/${collection}/new`} style="
+      background:#2563eb; color:#fff; padding:8px 16px;
+      border-radius:6px; text-decoration:none; font-size:14px; font-weight:500
+    ">+ New entry</a>
+  </div>
+
+  {entries.length === 0 ? (
+    <div style="text-align:center; padding:60px; color:#9ca3af">
+      <p style="font-size:16px">No entries yet.</p>
+      <a href={`/admin/${collection}/new`} style="color:#2563eb; font-size:14px">Create the first one →</a>
+    </div>
+  ) : (
+    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
+      <table style="width:100%; border-collapse:collapse; font-size:14px">
+        <thead>
+          <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb">
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">ID</th>
+            {fields.slice(0, 3).map(f => (
+              <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">
+                {f.charAt(0).toUpperCase() + f.slice(1)}
+              </th>
+            ))}
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Date</th>
+            <th style="padding:10px 16px; text-align:right; font-weight:500; color:#6b7280">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {entries.map((entry: Record<string, unknown>) => (
+            <tr style="border-bottom:1px solid #f3f4f6">
+              <td style="padding:10px 16px; color:#9ca3af">{String(entry['id'])}</td>
+              {fields.slice(0, 3).map(f => (
+                <td style="padding:10px 16px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
+                  {entry[f] != null ? String(entry[f]).slice(0, 60) : <span style="color:#d1d5db">—</span>}
+                </td>
+              ))}
+              <td style="padding:10px 16px; color:#9ca3af; font-size:13px">
+                {new Date(String(entry['createdAt'] ?? entry['created_at'])).toLocaleDateString()}
+              </td>
+              <td style="padding:10px 16px; text-align:right">
+                <a href={`/admin/${collection}/${entry['id']}`}
+                   style="color:#2563eb; font-size:13px; margin-right:12px">Edit</a>
+                <form method="POST" style="display:inline"
+                      onsubmit="return confirm('Delete this entry?')">
+                  <input type="hidden" name="_action" value="delete" />
+                  <input type="hidden" name="id" value={String(entry['id'])} />
+                  <button type="submit"
+                    style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
+                    Delete
+                  </button>
+                </form>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</Layout>

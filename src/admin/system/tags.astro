@@ -1,0 +1,97 @@
+---
+import Layout from '../layout.astro'
+import { createSystemClient } from '../../system/client.js'
+
+const config = (await import('virtual:astro-cms/config')).default
+const env = (Astro.locals as { runtime?: { env: Record<string, unknown> } }).runtime?.env ?? {}
+const db = env['DB'] as D1Database
+const system = createSystemClient(db)
+
+function toSlug(name: string) {
+  return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
+}
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData()
+  const action = form.get('_action') as string
+
+  if (action === 'create') {
+    const name = (form.get('name') as string).trim()
+    if (name) await system.tags.create({ name, slug: toSlug(name) })
+  }
+
+  if (action === 'delete') {
+    const id = parseInt(form.get('id') as string, 10)
+    await system.tags.delete(id)
+  }
+
+  return Astro.redirect('/admin/system/tags')
+}
+
+const tags = await system.tags.list()
+---
+
+<Layout config={config} title="Tags" activeSystem="tags">
+  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
+    <h1 style="font-size:22px; font-weight:600">Tags</h1>
+    <span style="font-size:13px; color:#9ca3af">{tags.length} tag{tags.length !== 1 ? 's' : ''}</span>
+  </div>
+
+  <!-- Create form -->
+  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:24px">
+    <p style="font-size:13px; font-weight:500; color:#374151; margin-bottom:12px">Nouveau tag</p>
+    <form method="POST" style="display:flex; gap:10px; align-items:flex-end">
+      <input type="hidden" name="_action" value="create" />
+      <div style="flex:1">
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Nom</label>
+        <input type="text" name="name" required placeholder="ex: JavaScript"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+      <button type="submit"
+        style="padding:8px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer; white-space:nowrap">
+        + Ajouter
+      </button>
+    </form>
+  </div>
+
+  <!-- Tags list -->
+  {tags.length === 0 ? (
+    <div style="text-align:center; padding:60px; color:#9ca3af">
+      <p style="font-size:16px">Aucun tag pour l'instant.</p>
+    </div>
+  ) : (
+    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
+      <table style="width:100%; border-collapse:collapse; font-size:14px">
+        <thead>
+          <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb">
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Nom</th>
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Slug</th>
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Créé le</th>
+            <th style="padding:10px 16px; text-align:right; font-weight:500; color:#6b7280">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {tags.map((tag) => (
+            <tr style="border-bottom:1px solid #f3f4f6">
+              <td style="padding:10px 16px; font-weight:500">{tag.name}</td>
+              <td style="padding:10px 16px; color:#6b7280; font-size:13px; font-family:monospace">{tag.slug}</td>
+              <td style="padding:10px 16px; color:#9ca3af; font-size:13px">
+                {new Date(tag.createdAt).toLocaleDateString()}
+              </td>
+              <td style="padding:10px 16px; text-align:right">
+                <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer ce tag ?')">
+                  <input type="hidden" name="_action" value="delete" />
+                  <input type="hidden" name="id" value={String(tag.id)} />
+                  <button type="submit"
+                    style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
+                    Supprimer
+                  </button>
+                </form>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</Layout>

@@ -1,0 +1,53 @@
+{
+  "name": "@geniusofdigital/astro-cms",
+  "version": "0.1.0",
+  "description": "A type-safe CMS runtime for Astro + Cloudflare (D1, R2, KV)",
+  "license": "MIT",
+  "type": "module",
+  "files": ["dist", "bin", "src/admin"],
+  "exports": {
+    ".": {
+      "types": "./dist/runtime/index.d.ts",
+      "import": "./dist/runtime/index.js"
+    },
+    "./config": {
+      "types": "./dist/config/index.d.ts",
+      "import": "./dist/config/index.js"
+    },
+    "./astro": {
+      "types": "./dist/astro/integration.d.ts",
+      "import": "./dist/astro/integration.js"
+    },
+    "./api": {
+      "types": "./dist/api/index.d.ts",
+      "import": "./dist/api/index.js"
+    },
+    "./system": {
+      "types": "./dist/system/index.d.ts",
+      "import": "./dist/system/index.js"
+    }
+  },
+  "bin": {
+    "astro-cms": "./bin/astro-cms.mjs"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.runtime.json && tsc -p tsconfig.cli.json && tsc -p tsconfig.astro.json",
+    "dev": "tsc -p tsconfig.runtime.json --watch",
+    "typecheck": "tsc -p tsconfig.runtime.json --noEmit && tsc -p tsconfig.cli.json --noEmit && tsc -p tsconfig.astro.json --noEmit"
+  },
+  "dependencies": {
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20240529.0",
+    "@types/node": "^25.6.0",
+    "astro": "^4.14.0",
+    "typescript": "^5.5.0"
+  },
+  "peerDependencies": {
+    "astro": ">=4.14.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
