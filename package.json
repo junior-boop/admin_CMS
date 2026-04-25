@@ -28,7 +28,7 @@
     }
   },
   "bin": {
-    "astro-cms": "./bin/astro-cms.mjs"
+    "astro-cms": "./bin/astro-cms.js"
   },
   "scripts": {
     "build": "tsc -p tsconfig.runtime.json && tsc -p tsconfig.cli.json && tsc -p tsconfig.astro.json",
