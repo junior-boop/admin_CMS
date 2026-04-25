@@ -1,4 +1,5 @@
 import { resolve, join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { generate } from './generator.js';
@@ -18,7 +19,7 @@ async function loadUserConfig() {
         throw new Error('No cms.config.ts found. Run `astro-cms init` to create one.');
     }
     // Use dynamic import — works with tsx/bun/jiti at runtime
-    const mod = await import(resolve(configPath));
+    const mod = await import(pathToFileURL(resolve(configPath)).href);
     return mod.default ?? mod;
 }
 // ─── Commands ─────────────────────────────────────────────────────────────────
