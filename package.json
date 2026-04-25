@@ -22,6 +22,10 @@
       "types": "./dist/astro/integration.d.ts",
       "import": "./dist/astro/integration.js"
     },
+    "./middleware": {
+      "types": "./dist/astro/middleware.d.ts",
+      "import": "./dist/astro/middleware.js"
+    },
     "./api": {
       "types": "./dist/api/index.d.ts",
       "import": "./dist/api/index.js"

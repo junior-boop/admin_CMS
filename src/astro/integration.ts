@@ -1,13 +1,13 @@
 import type { AstroIntegration } from 'astro'
 import type { CMSConfig } from '../config/types.js'
 import { validateConfig } from '../config/schema.js'
-import { fileURLToPath, pathToFileURL } from 'node:url'
+import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 // admin .astro files live in src/admin and are shipped as source in the npm package
 const adminDir = resolve(__dirname, '../../src/admin')
-const middlewareEntry = pathToFileURL(resolve(__dirname, 'middleware.js')).href
+const middlewareEntry = '@geniusofdigital/astro-cms/middleware'
 
 export function cms(config: CMSConfig): AstroIntegration {
   const validated = validateConfig(config)
