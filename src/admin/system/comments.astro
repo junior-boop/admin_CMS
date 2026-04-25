@@ -2,9 +2,10 @@
 import Layout from '../layout.astro'
 import { createSystemClient } from '../../system/client.js'
 import type { CommentStatus } from '../../system/types.js'
+import { env as _cfEnv } from 'cloudflare:workers'
 
 const config = (await import('virtual:astro-cms/config')).default
-const env = (Astro.locals as { runtime?: { env: Record<string, unknown> } }).runtime?.env ?? {}
+const env = _cfEnv as Record<string, unknown>
 const db = env['DB'] as D1Database
 const system = createSystemClient(db)
 

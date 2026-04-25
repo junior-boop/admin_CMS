@@ -1,10 +1,12 @@
+import { env as _cfEnv } from 'cloudflare:workers'
+
 export const onRequest = async (context: any, next: () => Promise<Response>): Promise<Response> => {
   const path: string = context.url.pathname
 
   if (!path.startsWith('/admin')) return next()
   if (path === '/admin/login' || path === '/admin/logout') return next()
 
-  const env: Record<string, unknown> = context.locals?.runtime?.env ?? {}
+  const env = _cfEnv as Record<string, unknown>
   const adminPassword = env['ADMIN_PASSWORD'] as string | undefined
 
   // No password configured → open access (local dev)

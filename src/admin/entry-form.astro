@@ -1,6 +1,7 @@
 ---
 import Layout from './layout.astro'
 import { createCMSClient } from '../runtime/client.js'
+import { env as _cfEnv } from 'cloudflare:workers'
 
 const config = (await import('virtual:astro-cms/config')).default
 const { collection, id } = Astro.params as { collection: string; id?: string }
@@ -9,7 +10,7 @@ if (!config.collections[collection]) {
   return new Response('Not found', { status: 404 })
 }
 
-const env = (Astro.locals as { runtime?: { env: Record<string, unknown> } }).runtime?.env ?? {}
+const env = _cfEnv as Record<string, unknown>
 const db = env['DB'] as D1Database
 const cms = createCMSClient(config, { db })
 
@@ -38,9 +39,9 @@ if (Astro.request.method === 'POST') {
   }
 
   if (isEdit && id) {
-    await cms[collection]!.update(parseInt(id, 10), data)
+    await cms[collection]!.update(parseInt(id, 10), data as any)
   } else {
-    await cms[collection]!.create(data)
+    await cms[collection]!.create(data as any)
   }
   return Astro.redirect(`/admin/${collection}`)
 }

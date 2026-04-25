@@ -1,10 +1,11 @@
+import { env as _cfEnv } from 'cloudflare:workers';
 export const onRequest = async (context, next) => {
     const path = context.url.pathname;
     if (!path.startsWith('/admin'))
         return next();
     if (path === '/admin/login' || path === '/admin/logout')
         return next();
-    const env = context.locals?.runtime?.env ?? {};
+    const env = _cfEnv;
     const adminPassword = env['ADMIN_PASSWORD'];
     // No password configured → open access (local dev)
     if (!adminPassword)

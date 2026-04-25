@@ -1,7 +1,7 @@
 ---
 import Layout from './layout.astro'
 import { createCMSClient } from '../runtime/client.js'
-import { createSystemClient } from '../system/client.js'
+import { env as _cfEnv } from 'cloudflare:workers'
 
 const config = (await import('virtual:astro-cms/config')).default
 const { collection } = Astro.params as { collection: string }
@@ -10,7 +10,7 @@ if (!config.collections[collection]) {
   return new Response('Not found', { status: 404 })
 }
 
-const env = (Astro.locals as { runtime?: { env: Record<string, unknown> } }).runtime?.env ?? {}
+const env = _cfEnv as Record<string, unknown>
 const db = env['DB'] as D1Database
 const cms = createCMSClient(config, { db })
 
@@ -26,7 +26,7 @@ if (Astro.request.method === 'POST') {
   }
 }
 
-const entries = await cms[collection]!.find({ limit: 50 })
+const entries: Record<string, unknown>[] = (await cms[collection]!.find({ limit: 50 })) as any
 const collectionDef = config.collections[collection]!
 const fields = Object.keys(collectionDef.fields)
 const label = collection.charAt(0).toUpperCase() + collection.slice(1)
@@ -62,7 +62,7 @@ const label = collection.charAt(0).toUpperCase() + collection.slice(1)
           </tr>
         </thead>
         <tbody>
-          {entries.map((entry: Record<string, unknown>) => (
+          {entries.map((entry) => (
             <tr style="border-bottom:1px solid #f3f4f6">
               <td style="padding:10px 16px; color:#9ca3af">{String(entry['id'])}</td>
               {fields.slice(0, 3).map(f => (

@@ -1,5 +1,6 @@
 ---
-const env = (Astro.locals as { runtime?: { env: Record<string, unknown> } }).runtime?.env ?? {}
+import { env as _cfEnv } from 'cloudflare:workers'
+const env = _cfEnv as Record<string, unknown>
 const adminPassword = env['ADMIN_PASSWORD'] as string | undefined
 
 // No password configured → skip auth

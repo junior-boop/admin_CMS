@@ -1,1 +1,1 @@
-{"version":3,"file":"middleware.d.ts","sourceRoot":"","sources":["../../src/astro/middleware.ts"],"names":[],"mappings":"AAAA,eAAO,MAAM,SAAS,GAAU,SAAS,GAAG,EAAE,MAAM,MAAM,OAAO,CAAC,QAAQ,CAAC,KAAG,OAAO,CAAC,QAAQ,CAkB7F,CAAA"}
+{"version":3,"file":"middleware.d.ts","sourceRoot":"","sources":["../../src/astro/middleware.ts"],"names":[],"mappings":"AAEA,eAAO,MAAM,SAAS,GAAU,SAAS,GAAG,EAAE,MAAM,MAAM,OAAO,CAAC,QAAQ,CAAC,KAAG,OAAO,CAAC,QAAQ,CAkB7F,CAAA"}
