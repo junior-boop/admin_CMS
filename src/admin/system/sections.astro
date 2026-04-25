@@ -1,7 +1,7 @@
 ---
 import Layout from '../layout.astro'
-import { createSystemClient } from '../../system/client.js'
-import type { SectionType } from '../../system/types.js'
+import { createSystemClient } from '@geniusofdigital/astro-cms/system'
+import type { SectionType } from '@geniusofdigital/astro-cms/system'
 import { env as _cfEnv } from 'cloudflare:workers'
 
 const config = (await import('virtual:astro-cms/config')).default

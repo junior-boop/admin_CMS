@@ -1,7 +1,7 @@
 ---
 import Layout from './layout.astro'
-import { createSystemClient } from '../system/client.js'
-import { createMediaClient } from '../runtime/media.js'
+import { createSystemClient } from '@geniusofdigital/astro-cms/system'
+import { createMediaClient } from '@geniusofdigital/astro-cms'
 import { env as _cfEnv } from 'cloudflare:workers'
 
 const config = (await import('virtual:astro-cms/config')).default
