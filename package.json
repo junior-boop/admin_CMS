@@ -1,10 +1,14 @@
 {
   "name": "@geniusofdigital/astro-cms",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "A type-safe CMS runtime for Astro + Cloudflare (D1, R2, KV)",
   "license": "MIT",
   "type": "module",
-  "files": ["dist", "bin", "src/admin"],
+  "files": [
+    "dist",
+    "bin",
+    "src/admin"
+  ],
   "exports": {
     ".": {
       "types": "./dist/runtime/index.d.ts",
