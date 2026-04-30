@@ -141,12 +141,13 @@ const currentPath = Astro.url.pathname
       <!-- Gestion: system collections -->
       <div class="nav-section-label" style="margin-top:12px">Gestion</div>
       {[
-        { slug: 'comments', label: 'Comments' },
-        { slug: 'menu',     label: 'Menu' },
-        { slug: 'sections', label: 'Sections' },
-        { slug: 'widgets',  label: 'Widgets' },
-        { slug: 'tags',     label: 'Tags' },
-        { slug: 'categories', label: 'Categories' },
+        { slug: 'comments',   label: 'Commentaires' },
+        { slug: 'forms',      label: 'Formulaires' },
+        { slug: 'menu',       label: 'Menus' },
+        { slug: 'sections',   label: 'Sections' },
+        { slug: 'widgets',    label: 'Widgets' },
+        { slug: 'tags',       label: 'Tags' },
+        { slug: 'categories', label: 'Catégories' },
       ].map(({ slug, label }) => (
         <a href={`/admin/system/${slug}`}
            class:list={['nav-link', { active: activeSystem === slug }]}>

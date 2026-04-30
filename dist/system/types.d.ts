@@ -70,6 +70,33 @@ export interface Comment {
     createdAt: string;
     updatedAt: string;
 }
+export type FormFieldType = 'text' | 'email' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'number' | 'date' | 'tel' | 'url';
+export interface Form {
+    id: number;
+    name: string;
+    slug: string;
+    description: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface FormField {
+    id: number;
+    formId: number;
+    label: string;
+    type: FormFieldType;
+    required: number;
+    placeholder: string | null;
+    options: string | null;
+    orderIndex: number;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface FormSubmission {
+    id: number;
+    formId: number;
+    data: string;
+    createdAt: string;
+}
 export interface MediaEntry {
     id: number;
     key: string;

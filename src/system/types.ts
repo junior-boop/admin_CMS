@@ -92,6 +92,39 @@ export interface Comment {
   updatedAt: string
 }
 
+// ─── Forms ────────────────────────────────────────────────────────────────────
+
+export type FormFieldType = 'text' | 'email' | 'textarea' | 'select' | 'checkbox' | 'radio' | 'number' | 'date' | 'tel' | 'url'
+
+export interface Form {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FormField {
+  id: number
+  formId: number
+  label: string
+  type: FormFieldType
+  required: number  // 0 | 1 (SQLite boolean)
+  placeholder: string | null
+  options: string | null  // JSON array for select/radio/checkbox
+  orderIndex: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface FormSubmission {
+  id: number
+  formId: number
+  data: string  // JSON
+  createdAt: string
+}
+
 // ─── Media (built-in, stored in R2 + metadata in D1) ─────────────────────────
 
 export interface MediaEntry {

@@ -189,6 +189,56 @@ function commentsClient(db) {
         },
     };
 }
+// ─── Forms ────────────────────────────────────────────────────────────────────
+function formsClient(db) {
+    return {
+        async list() {
+            const r = await db.prepare('SELECT * FROM cms_forms ORDER BY name').all();
+            return r.results;
+        },
+        async get(id) {
+            return db.prepare('SELECT * FROM cms_forms WHERE id = ?').bind(id).first();
+        },
+        async create(data) {
+            const t = now();
+            const r = await db
+                .prepare('INSERT INTO cms_forms (name, slug, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING *')
+                .bind(data.name, data.slug, data.description ?? null, t, t).first();
+            if (!r)
+                throw new Error('Failed to create form');
+            return r;
+        },
+        async delete(id) {
+            await db.prepare('DELETE FROM cms_forms WHERE id = ?').bind(id).run();
+        },
+        async listFields(formId) {
+            const r = await db
+                .prepare('SELECT * FROM cms_form_fields WHERE form_id = ? ORDER BY order_index')
+                .bind(formId).all();
+            return r.results;
+        },
+        async addField(formId, data) {
+            const t = now();
+            const r = await db
+                .prepare(`INSERT INTO cms_form_fields (form_id, label, type, required, placeholder, options, order_index, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
+                .bind(formId, data.label, data.type, data.required ? 1 : 0, data.placeholder ?? null, data.options ? JSON.stringify(data.options) : null, data.order ?? 0, t, t)
+                .first();
+            if (!r)
+                throw new Error('Failed to create field');
+            return r;
+        },
+        async deleteField(fieldId) {
+            await db.prepare('DELETE FROM cms_form_fields WHERE id = ?').bind(fieldId).run();
+        },
+        async listSubmissions(formId) {
+            const r = await db
+                .prepare('SELECT * FROM cms_form_submissions WHERE form_id = ? ORDER BY created_at DESC')
+                .bind(formId).all();
+            return r.results;
+        },
+    };
+}
 // ─── Media ────────────────────────────────────────────────────────────────────
 function mediaDbClient(db) {
     return {
@@ -223,6 +273,7 @@ export function createSystemClient(db) {
         widgets: widgetsClient(db),
         comments: commentsClient(db),
         mediaDb: mediaDbClient(db),
+        forms: formsClient(db),
     };
 }
 //# sourceMappingURL=client.js.map

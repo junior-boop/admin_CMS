@@ -7,4 +7,5 @@ export type {
   Section, SectionType,
   Widget, Comment, CommentStatus,
   MediaEntry,
+  Form, FormField, FormFieldType, FormSubmission,
 } from './types.js'

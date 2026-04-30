@@ -4,6 +4,7 @@ import type {
   Section, SectionType,
   Widget, Comment, CommentStatus,
   MediaEntry,
+  Form, FormField, FormFieldType, FormSubmission,
 } from './types.js'
 
 function now() { return new Date().toISOString() }
@@ -212,6 +213,69 @@ function commentsClient(db: D1Database) {
   }
 }
 
+// ─── Forms ────────────────────────────────────────────────────────────────────
+
+function formsClient(db: D1Database) {
+  return {
+    async list(): Promise<Form[]> {
+      const r = await db.prepare('SELECT * FROM cms_forms ORDER BY name').all<Form>()
+      return r.results
+    },
+
+    async get(id: number): Promise<Form | null> {
+      return db.prepare('SELECT * FROM cms_forms WHERE id = ?').bind(id).first<Form>()
+    },
+
+    async create(data: { name: string; slug: string; description?: string }): Promise<Form> {
+      const t = now()
+      const r = await db
+        .prepare('INSERT INTO cms_forms (name, slug, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING *')
+        .bind(data.name, data.slug, data.description ?? null, t, t).first<Form>()
+      if (!r) throw new Error('Failed to create form')
+      return r
+    },
+
+    async delete(id: number): Promise<void> {
+      await db.prepare('DELETE FROM cms_forms WHERE id = ?').bind(id).run()
+    },
+
+    async listFields(formId: number): Promise<FormField[]> {
+      const r = await db
+        .prepare('SELECT * FROM cms_form_fields WHERE form_id = ? ORDER BY order_index')
+        .bind(formId).all<FormField>()
+      return r.results
+    },
+
+    async addField(formId: number, data: {
+      label: string; type: FormFieldType; required?: boolean;
+      placeholder?: string; options?: string[]; order?: number
+    }): Promise<FormField> {
+      const t = now()
+      const r = await db
+        .prepare(`INSERT INTO cms_form_fields (form_id, label, type, required, placeholder, options, order_index, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
+        .bind(formId, data.label, data.type, data.required ? 1 : 0,
+              data.placeholder ?? null,
+              data.options ? JSON.stringify(data.options) : null,
+              data.order ?? 0, t, t)
+        .first<FormField>()
+      if (!r) throw new Error('Failed to create field')
+      return r
+    },
+
+    async deleteField(fieldId: number): Promise<void> {
+      await db.prepare('DELETE FROM cms_form_fields WHERE id = ?').bind(fieldId).run()
+    },
+
+    async listSubmissions(formId: number): Promise<FormSubmission[]> {
+      const r = await db
+        .prepare('SELECT * FROM cms_form_submissions WHERE form_id = ? ORDER BY created_at DESC')
+        .bind(formId).all<FormSubmission>()
+      return r.results
+    },
+  }
+}
+
 // ─── Media ────────────────────────────────────────────────────────────────────
 
 function mediaDbClient(db: D1Database) {
@@ -250,6 +314,7 @@ export interface SystemClient {
   widgets: ReturnType<typeof widgetsClient>
   comments: ReturnType<typeof commentsClient>
   mediaDb: ReturnType<typeof mediaDbClient>
+  forms: ReturnType<typeof formsClient>
 }
 
 export function createSystemClient(db: D1Database): SystemClient {
@@ -261,5 +326,6 @@ export function createSystemClient(db: D1Database): SystemClient {
     widgets: widgetsClient(db),
     comments: commentsClient(db),
     mediaDb: mediaDbClient(db),
+    forms: formsClient(db),
   }
 }

@@ -1,4 +1,4 @@
-import type { Menu, MenuItem, MenuWithItems, Tag, Category, Section, SectionType, Widget, Comment, CommentStatus, MediaEntry } from './types.js';
+import type { Menu, MenuItem, MenuWithItems, Tag, Category, Section, SectionType, Widget, Comment, CommentStatus, MediaEntry, Form, FormField, FormFieldType, FormSubmission } from './types.js';
 declare function menuClient(db: D1Database): {
     list(): Promise<Menu[]>;
     get(slug: string): Promise<MenuWithItems | null>;
@@ -61,6 +61,27 @@ declare function commentsClient(db: D1Database): {
     updateStatus(id: number, status: CommentStatus): Promise<Comment>;
     delete(id: number): Promise<void>;
 };
+declare function formsClient(db: D1Database): {
+    list(): Promise<Form[]>;
+    get(id: number): Promise<Form | null>;
+    create(data: {
+        name: string;
+        slug: string;
+        description?: string;
+    }): Promise<Form>;
+    delete(id: number): Promise<void>;
+    listFields(formId: number): Promise<FormField[]>;
+    addField(formId: number, data: {
+        label: string;
+        type: FormFieldType;
+        required?: boolean;
+        placeholder?: string;
+        options?: string[];
+        order?: number;
+    }): Promise<FormField>;
+    deleteField(fieldId: number): Promise<void>;
+    listSubmissions(formId: number): Promise<FormSubmission[]>;
+};
 declare function mediaDbClient(db: D1Database): {
     list(limit?: number, offset?: number): Promise<MediaEntry[]>;
     create(data: Omit<MediaEntry, "id" | "createdAt" | "updatedAt">): Promise<MediaEntry>;
@@ -74,6 +95,7 @@ export interface SystemClient {
     widgets: ReturnType<typeof widgetsClient>;
     comments: ReturnType<typeof commentsClient>;
     mediaDb: ReturnType<typeof mediaDbClient>;
+    forms: ReturnType<typeof formsClient>;
 }
 export declare function createSystemClient(db: D1Database): SystemClient;
 export {};

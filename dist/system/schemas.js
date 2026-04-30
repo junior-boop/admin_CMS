@@ -79,6 +79,36 @@ CREATE TABLE IF NOT EXISTS cms_comments (
   updated_at TEXT NOT NULL
 );
 
+-- Forms
+CREATE TABLE IF NOT EXISTS cms_forms (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name        TEXT NOT NULL,
+  slug        TEXT NOT NULL UNIQUE,
+  description TEXT,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS cms_form_fields (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  form_id     INTEGER NOT NULL REFERENCES cms_forms(id) ON DELETE CASCADE,
+  label       TEXT NOT NULL,
+  type        TEXT NOT NULL CHECK(type IN ('text','email','textarea','select','checkbox','radio','number','date','tel','url')),
+  required    INTEGER NOT NULL DEFAULT 0,
+  placeholder TEXT,
+  options     TEXT,
+  order_index INTEGER NOT NULL DEFAULT 0,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS cms_form_submissions (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  form_id    INTEGER NOT NULL REFERENCES cms_forms(id) ON DELETE CASCADE,
+  data       TEXT NOT NULL,
+  created_at TEXT NOT NULL
+);
+
 -- Media metadata (R2 keys + metadata in D1)
 CREATE TABLE IF NOT EXISTS cms_media (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,
