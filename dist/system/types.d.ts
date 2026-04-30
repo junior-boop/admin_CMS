@@ -97,6 +97,37 @@ export interface FormSubmission {
     data: string;
     createdAt: string;
 }
+export interface ContentType {
+    id: number;
+    name: string;
+    slug: string;
+    description: string | null;
+    createdAt: string;
+    updatedAt: string;
+}
+export type ContentTypeFieldType = 'text' | 'richtext' | 'textarea' | 'number' | 'boolean' | 'date' | 'select' | 'email' | 'url';
+export interface ContentTypeField {
+    id: number;
+    contentTypeId: number;
+    name: string;
+    label: string;
+    type: ContentTypeFieldType;
+    required: number;
+    placeholder: string | null;
+    helpText: string | null;
+    options: string | null;
+    orderIndex: number;
+    createdAt: string;
+    updatedAt: string;
+}
+export interface Entry {
+    id: number;
+    contentTypeId: number;
+    data: string;
+    status: 'draft' | 'published';
+    createdAt: string;
+    updatedAt: string;
+}
 export interface MediaEntry {
     id: number;
     key: string;

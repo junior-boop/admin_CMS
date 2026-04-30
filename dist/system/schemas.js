@@ -109,6 +109,40 @@ CREATE TABLE IF NOT EXISTS cms_form_submissions (
   created_at TEXT NOT NULL
 );
 
+-- Dynamic Content Types
+CREATE TABLE IF NOT EXISTS cms_content_types (
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  name        TEXT NOT NULL,
+  slug        TEXT NOT NULL UNIQUE,
+  description TEXT,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS cms_content_type_fields (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  content_type_id INTEGER NOT NULL REFERENCES cms_content_types(id) ON DELETE CASCADE,
+  name            TEXT NOT NULL,
+  label           TEXT NOT NULL,
+  type            TEXT NOT NULL CHECK(type IN ('text','richtext','textarea','number','boolean','date','select','email','url')),
+  required        INTEGER NOT NULL DEFAULT 0,
+  placeholder     TEXT,
+  help_text       TEXT,
+  options         TEXT,
+  order_index     INTEGER NOT NULL DEFAULT 0,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS cms_entries (
+  id              INTEGER PRIMARY KEY AUTOINCREMENT,
+  content_type_id INTEGER NOT NULL REFERENCES cms_content_types(id) ON DELETE CASCADE,
+  data            TEXT NOT NULL DEFAULT '{}',
+  status          TEXT NOT NULL DEFAULT 'draft' CHECK(status IN ('draft', 'published')),
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
 -- Media metadata (R2 keys + metadata in D1)
 CREATE TABLE IF NOT EXISTS cms_media (
   id           INTEGER PRIMARY KEY AUTOINCREMENT,

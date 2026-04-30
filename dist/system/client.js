@@ -239,6 +239,102 @@ function formsClient(db) {
         },
     };
 }
+// ─── Dynamic Content Types ────────────────────────────────────────────────────
+function contentTypesClient(db) {
+    return {
+        async list() {
+            const r = await db.prepare('SELECT * FROM cms_content_types ORDER BY name').all();
+            return r.results;
+        },
+        async get(id) {
+            return db.prepare('SELECT * FROM cms_content_types WHERE id = ?').bind(id).first();
+        },
+        async getBySlug(slug) {
+            return db.prepare('SELECT * FROM cms_content_types WHERE slug = ?').bind(slug).first();
+        },
+        async create(data) {
+            const t = now();
+            const r = await db
+                .prepare('INSERT INTO cms_content_types (name, slug, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING *')
+                .bind(data.name, data.slug, data.description ?? null, t, t).first();
+            if (!r)
+                throw new Error('Failed to create content type');
+            return r;
+        },
+        async delete(id) {
+            await db.prepare('DELETE FROM cms_content_types WHERE id = ?').bind(id).run();
+        },
+        async listFields(contentTypeId) {
+            const r = await db
+                .prepare('SELECT * FROM cms_content_type_fields WHERE content_type_id = ? ORDER BY order_index')
+                .bind(contentTypeId).all();
+            return r.results;
+        },
+        async addField(contentTypeId, data) {
+            const t = now();
+            const r = await db
+                .prepare(`INSERT INTO cms_content_type_fields
+                  (content_type_id, name, label, type, required, placeholder, help_text, options, order_index, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
+                .bind(contentTypeId, data.name, data.label, data.type, data.required ? 1 : 0, data.placeholder ?? null, data.helpText ?? null, data.options ? JSON.stringify(data.options) : null, data.order ?? 0, t, t)
+                .first();
+            if (!r)
+                throw new Error('Failed to create field');
+            return r;
+        },
+        async deleteField(fieldId) {
+            await db.prepare('DELETE FROM cms_content_type_fields WHERE id = ?').bind(fieldId).run();
+        },
+    };
+}
+// ─── Entries (dynamic content type entries stored as JSON) ────────────────────
+function entriesClient(db) {
+    return {
+        async list(contentTypeId, options = {}) {
+            let sql = 'SELECT * FROM cms_entries WHERE content_type_id = ?';
+            const binds = [contentTypeId];
+            if (options.status) {
+                sql += ' AND status = ?';
+                binds.push(options.status);
+            }
+            sql += ' ORDER BY created_at DESC';
+            if (options.limit) {
+                sql += ' LIMIT ?';
+                binds.push(options.limit);
+            }
+            const r = await db.prepare(sql).bind(...binds).all();
+            return r.results;
+        },
+        async get(id) {
+            return db.prepare('SELECT * FROM cms_entries WHERE id = ?').bind(id).first();
+        },
+        async create(contentTypeId, data, status = 'draft') {
+            const t = now();
+            const r = await db
+                .prepare('INSERT INTO cms_entries (content_type_id, data, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING *')
+                .bind(contentTypeId, JSON.stringify(data), status, t, t).first();
+            if (!r)
+                throw new Error('Failed to create entry');
+            return r;
+        },
+        async update(id, data, status) {
+            const existing = await db.prepare('SELECT * FROM cms_entries WHERE id = ?').bind(id).first();
+            if (!existing)
+                throw new Error(`Entry ${id} not found`);
+            const merged = { ...JSON.parse(existing.data), ...data };
+            const t = now();
+            const r = await db
+                .prepare('UPDATE cms_entries SET data = ?, status = ?, updated_at = ? WHERE id = ? RETURNING *')
+                .bind(JSON.stringify(merged), status ?? existing.status, t, id).first();
+            if (!r)
+                throw new Error(`Entry ${id} not found`);
+            return r;
+        },
+        async delete(id) {
+            await db.prepare('DELETE FROM cms_entries WHERE id = ?').bind(id).run();
+        },
+    };
+}
 // ─── Media ────────────────────────────────────────────────────────────────────
 function mediaDbClient(db) {
     return {
@@ -274,6 +370,8 @@ export function createSystemClient(db) {
         comments: commentsClient(db),
         mediaDb: mediaDbClient(db),
         forms: formsClient(db),
+        contentTypes: contentTypesClient(db),
+        entries: entriesClient(db),
     };
 }
 //# sourceMappingURL=client.js.map

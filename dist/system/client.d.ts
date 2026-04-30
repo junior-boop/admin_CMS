@@ -1,4 +1,4 @@
-import type { Menu, MenuItem, MenuWithItems, Tag, Category, Section, SectionType, Widget, Comment, CommentStatus, MediaEntry, Form, FormField, FormFieldType, FormSubmission } from './types.js';
+import type { Menu, MenuItem, MenuWithItems, Tag, Category, Section, SectionType, Widget, Comment, CommentStatus, MediaEntry, Form, FormField, FormFieldType, FormSubmission, ContentType, ContentTypeField, ContentTypeFieldType, Entry } from './types.js';
 declare function menuClient(db: D1Database): {
     list(): Promise<Menu[]>;
     get(slug: string): Promise<MenuWithItems | null>;
@@ -82,6 +82,39 @@ declare function formsClient(db: D1Database): {
     deleteField(fieldId: number): Promise<void>;
     listSubmissions(formId: number): Promise<FormSubmission[]>;
 };
+declare function contentTypesClient(db: D1Database): {
+    list(): Promise<ContentType[]>;
+    get(id: number): Promise<ContentType | null>;
+    getBySlug(slug: string): Promise<ContentType | null>;
+    create(data: {
+        name: string;
+        slug: string;
+        description?: string;
+    }): Promise<ContentType>;
+    delete(id: number): Promise<void>;
+    listFields(contentTypeId: number): Promise<ContentTypeField[]>;
+    addField(contentTypeId: number, data: {
+        name: string;
+        label: string;
+        type: ContentTypeFieldType;
+        required?: boolean;
+        placeholder?: string;
+        helpText?: string;
+        options?: string[];
+        order?: number;
+    }): Promise<ContentTypeField>;
+    deleteField(fieldId: number): Promise<void>;
+};
+declare function entriesClient(db: D1Database): {
+    list(contentTypeId: number, options?: {
+        status?: string;
+        limit?: number;
+    }): Promise<Entry[]>;
+    get(id: number): Promise<Entry | null>;
+    create(contentTypeId: number, data: Record<string, unknown>, status?: "draft" | "published"): Promise<Entry>;
+    update(id: number, data: Record<string, unknown>, status?: "draft" | "published"): Promise<Entry>;
+    delete(id: number): Promise<void>;
+};
 declare function mediaDbClient(db: D1Database): {
     list(limit?: number, offset?: number): Promise<MediaEntry[]>;
     create(data: Omit<MediaEntry, "id" | "createdAt" | "updatedAt">): Promise<MediaEntry>;
@@ -96,6 +129,8 @@ export interface SystemClient {
     comments: ReturnType<typeof commentsClient>;
     mediaDb: ReturnType<typeof mediaDbClient>;
     forms: ReturnType<typeof formsClient>;
+    contentTypes: ReturnType<typeof contentTypesClient>;
+    entries: ReturnType<typeof entriesClient>;
 }
 export declare function createSystemClient(db: D1Database): SystemClient;
 export {};

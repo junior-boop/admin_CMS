@@ -1,95 +1,187 @@
 ---
 import Layout from './layout.astro'
 import { createCMSClient } from '@geniusofdigital/astro-cms'
+import { createSystemClient } from '@geniusofdigital/astro-cms/system'
+import type { ContentType, ContentTypeField, Entry } from '@geniusofdigital/astro-cms/system'
 import { env as _cfEnv } from 'cloudflare:workers'
 
 const config = (await import('virtual:astro-cms/config')).default
 const { collection } = Astro.params as { collection: string }
 
-if (!config.collections[collection]) {
-  return new Response('Not found', { status: 404 })
-}
-
 const env = _cfEnv as Record<string, unknown>
 const db = env['DB'] as D1Database
-const cms = createCMSClient(config, { db })
+const system = createSystemClient(db)
 
-// Handle POST actions from forms
+const isStatic = Boolean(config.collections[collection])
+let dynamicType: ContentType | null = null
+let dynamicFields: ContentTypeField[] = []
+let dynamicEntries: Entry[] = []
+
+if (!isStatic) {
+  dynamicType = await system.contentTypes.getBySlug(collection)
+  if (!dynamicType) return new Response('Collection introuvable', { status: 404 })
+  dynamicFields = await system.contentTypes.listFields(dynamicType.id)
+}
+
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData()
   const action = form.get('_action') as string
 
   if (action === 'delete') {
     const id = parseInt(form.get('id') as string, 10)
-    await cms[collection]!.delete(id)
+    if (isStatic) {
+      const cms = createCMSClient(config, { db })
+      await cms[collection]!.delete(id)
+    } else {
+      await system.entries.delete(id)
+    }
     return Astro.redirect(`/admin/${collection}`)
   }
 }
 
-const entries: Record<string, unknown>[] = (await cms[collection]!.find({ limit: 50 })) as any
-const collectionDef = config.collections[collection]!
-const fields = Object.keys(collectionDef.fields)
-const label = collection.charAt(0).toUpperCase() + collection.slice(1)
+let staticEntries: Record<string, unknown>[] = []
+let staticFields: string[] = []
+
+if (isStatic) {
+  const cms = createCMSClient(config, { db })
+  staticEntries = (await cms[collection]!.find({ limit: 50 })) as any
+  staticFields = Object.keys(config.collections[collection]!.fields)
+} else {
+  dynamicEntries = await system.entries.list(dynamicType!.id, { limit: 50 })
+}
+
+const label = isStatic
+  ? collection.charAt(0).toUpperCase() + collection.slice(1)
+  : dynamicType!.name
 ---
 
-<Layout config={config} title={label} activeCollection={collection}>
+<Layout config={config} title={label} activeCollection={collection} db={db}>
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
-    <h1 style="font-size:22px; font-weight:600">{label}</h1>
+    <div style="display:flex; align-items:center; gap:12px">
+      <h1 style="font-size:22px; font-weight:600">{label}</h1>
+      {!isStatic && (
+        <a href={`/admin/system/content-types/${dynamicType!.id}`}
+           style="font-size:12px; color:#6b7280; padding:3px 8px; border:1px solid #e5e7eb; border-radius:4px; text-decoration:none">
+          Gérer les champs
+        </a>
+      )}
+    </div>
     <a href={`/admin/${collection}/new`} style="
       background:#2563eb; color:#fff; padding:8px 16px;
       border-radius:6px; text-decoration:none; font-size:14px; font-weight:500
-    ">+ New entry</a>
+    ">+ Nouvelle entrée</a>
   </div>
 
-  {entries.length === 0 ? (
-    <div style="text-align:center; padding:60px; color:#9ca3af">
-      <p style="font-size:16px">No entries yet.</p>
-      <a href={`/admin/${collection}/new`} style="color:#2563eb; font-size:14px">Create the first one →</a>
-    </div>
-  ) : (
-    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
-      <table style="width:100%; border-collapse:collapse; font-size:14px">
-        <thead>
-          <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb">
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">ID</th>
-            {fields.slice(0, 3).map(f => (
-              <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">
-                {f.charAt(0).toUpperCase() + f.slice(1)}
-              </th>
-            ))}
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Date</th>
-            <th style="padding:10px 16px; text-align:right; font-weight:500; color:#6b7280">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {entries.map((entry) => (
-            <tr style="border-bottom:1px solid #f3f4f6">
-              <td style="padding:10px 16px; color:#9ca3af">{String(entry['id'])}</td>
-              {fields.slice(0, 3).map(f => (
-                <td style="padding:10px 16px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
-                  {entry[f] != null ? String(entry[f]).slice(0, 60) : <span style="color:#d1d5db">—</span>}
-                </td>
+  {/* ── Static collection ── */}
+  {isStatic && (
+    staticEntries.length === 0 ? (
+      <div style="text-align:center; padding:60px; color:#9ca3af">
+        <p style="font-size:16px">Aucune entrée.</p>
+        <a href={`/admin/${collection}/new`} style="color:#2563eb; font-size:14px">Créer la première →</a>
+      </div>
+    ) : (
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
+        <table style="width:100%; border-collapse:collapse; font-size:14px">
+          <thead>
+            <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb">
+              <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">ID</th>
+              {staticFields.slice(0, 3).map(f => (
+                <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">
+                  {f.charAt(0).toUpperCase() + f.slice(1)}
+                </th>
               ))}
-              <td style="padding:10px 16px; color:#9ca3af; font-size:13px">
-                {new Date(String(entry['createdAt'] ?? entry['created_at'])).toLocaleDateString()}
-              </td>
-              <td style="padding:10px 16px; text-align:right">
-                <a href={`/admin/${collection}/${entry['id']}`}
-                   style="color:#2563eb; font-size:13px; margin-right:12px">Edit</a>
-                <form method="POST" style="display:inline"
-                      onsubmit="return confirm('Delete this entry?')">
-                  <input type="hidden" name="_action" value="delete" />
-                  <input type="hidden" name="id" value={String(entry['id'])} />
-                  <button type="submit"
-                    style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
-                    Delete
-                  </button>
-                </form>
-              </td>
+              <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Date</th>
+              <th style="padding:10px 16px; text-align:right; font-weight:500; color:#6b7280">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {staticEntries.map((entry) => (
+              <tr style="border-bottom:1px solid #f3f4f6">
+                <td style="padding:10px 16px; color:#9ca3af">{String(entry['id'])}</td>
+                {staticFields.slice(0, 3).map(f => (
+                  <td style="padding:10px 16px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
+                    {entry[f] != null ? String(entry[f]).slice(0, 60) : <span style="color:#d1d5db">—</span>}
+                  </td>
+                ))}
+                <td style="padding:10px 16px; color:#9ca3af; font-size:13px">
+                  {new Date(String(entry['createdAt'] ?? entry['created_at'])).toLocaleDateString('fr-FR')}
+                </td>
+                <td style="padding:10px 16px; text-align:right">
+                  <a href={`/admin/${collection}/${entry['id']}`} style="color:#2563eb; font-size:13px; margin-right:12px">Modifier</a>
+                  <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer cette entrée ?')">
+                    <input type="hidden" name="_action" value="delete" />
+                    <input type="hidden" name="id" value={String(entry['id'])} />
+                    <button type="submit" style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">Supprimer</button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  )}
+
+  {/* ── Dynamic collection ── */}
+  {!isStatic && (
+    dynamicFields.length === 0 ? (
+      <div style="text-align:center; padding:60px; color:#9ca3af">
+        <p style="font-size:16px">Ce type n'a pas encore de champs.</p>
+        <a href={`/admin/system/content-types/${dynamicType!.id}`} style="color:#2563eb; font-size:14px">Définir les champs →</a>
+      </div>
+    ) : dynamicEntries.length === 0 ? (
+      <div style="text-align:center; padding:60px; color:#9ca3af">
+        <p style="font-size:16px">Aucune entrée.</p>
+        <a href={`/admin/${collection}/new`} style="color:#2563eb; font-size:14px">Créer la première →</a>
+      </div>
+    ) : (
+      <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
+        <table style="width:100%; border-collapse:collapse; font-size:14px">
+          <thead>
+            <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb">
+              <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">ID</th>
+              {dynamicFields.slice(0, 3).map(f => (
+                <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">{f.label}</th>
+              ))}
+              <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Statut</th>
+              <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Date</th>
+              <th style="padding:10px 16px; text-align:right; font-weight:500; color:#6b7280">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {dynamicEntries.map((entry) => {
+              let data: Record<string, unknown> = {}
+              try { data = JSON.parse(entry.data) } catch {}
+              return (
+                <tr style="border-bottom:1px solid #f3f4f6">
+                  <td style="padding:10px 16px; color:#9ca3af">{entry.id}</td>
+                  {dynamicFields.slice(0, 3).map(f => (
+                    <td style="padding:10px 16px; max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
+                      {data[f.name] != null ? String(data[f.name]).slice(0, 60) : <span style="color:#d1d5db">—</span>}
+                    </td>
+                  ))}
+                  <td style="padding:10px 16px">
+                    <span style={`display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:500; background:${entry.status === 'published' ? '#f0fdf4' : '#f9fafb'}; color:${entry.status === 'published' ? '#16a34a' : '#6b7280'}`}>
+                      {entry.status === 'published' ? 'Publié' : 'Brouillon'}
+                    </span>
+                  </td>
+                  <td style="padding:10px 16px; color:#9ca3af; font-size:13px">
+                    {new Date(entry.createdAt).toLocaleDateString('fr-FR')}
+                  </td>
+                  <td style="padding:10px 16px; text-align:right">
+                    <a href={`/admin/${collection}/${entry.id}`} style="color:#2563eb; font-size:13px; margin-right:12px">Modifier</a>
+                    <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer cette entrée ?')">
+                      <input type="hidden" name="_action" value="delete" />
+                      <input type="hidden" name="id" value={String(entry.id)} />
+                      <button type="submit" style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">Supprimer</button>
+                    </form>
+                  </td>
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    )
   )}
 </Layout>

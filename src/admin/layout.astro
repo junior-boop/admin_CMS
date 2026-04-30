@@ -6,11 +6,19 @@ interface Props {
   title: string
   activeCollection?: string
   activeSystem?: string
+  db?: D1Database
 }
 
-const { config, title, activeCollection, activeSystem } = Astro.props
+const { config, title, activeCollection, activeSystem, db } = Astro.props
 const collections = Object.entries(config.collections)
-const currentPath = Astro.url.pathname
+
+let dynamicCollections: Array<{ id: number; name: string; slug: string }> = []
+if (db) {
+  try {
+    const r = await db.prepare('SELECT id, name, slug FROM cms_content_types ORDER BY name').all<{ id: number; name: string; slug: string }>()
+    dynamicCollections = r.results
+  } catch {}
+}
 ---
 
 <!DOCTYPE html>
@@ -135,6 +143,12 @@ const currentPath = Astro.url.pathname
         <a href={`/admin/${name}`}
            class:list={['nav-link', { active: activeCollection === name }]}>
           {name.charAt(0).toUpperCase() + name.slice(1)}
+        </a>
+      ))}
+      {dynamicCollections.map((ct) => (
+        <a href={`/admin/${ct.slug}`}
+           class:list={['nav-link', { active: activeCollection === ct.slug }]}>
+          {ct.name}
         </a>
       ))}
 

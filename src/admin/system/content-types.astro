@@ -1,29 +1,164 @@
 ---
 import Layout from '../layout.astro'
+import { createSystemClient } from '@geniusofdigital/astro-cms/system'
+import { env as _cfEnv } from 'cloudflare:workers'
+
 const config = (await import('virtual:astro-cms/config')).default
+const env = _cfEnv as Record<string, unknown>
+const db = env['DB'] as D1Database
+const system = createSystemClient(db)
+
+if (Astro.request.method === 'POST') {
+  const form = await Astro.request.formData()
+  const action = form.get('_action') as string
+
+  if (action === 'create') {
+    const name = (form.get('name') as string).trim()
+    const slug = (form.get('slug') as string).trim()
+    const description = (form.get('description') as string | null)?.trim() || undefined
+    if (name && slug) {
+      await system.contentTypes.create({ name, slug, description })
+    }
+  }
+
+  if (action === 'delete') {
+    const id = parseInt(form.get('id') as string, 10)
+    await system.contentTypes.delete(id)
+  }
+
+  return Astro.redirect('/admin/system/content-types')
+}
+
+const contentTypes = await system.contentTypes.list()
+
+const entryCounts: Record<number, number> = {}
+for (const ct of contentTypes) {
+  const entries = await system.entries.list(ct.id)
+  entryCounts[ct.id] = entries.length
+}
+
+const fieldCounts: Record<number, number> = {}
+for (const ct of contentTypes) {
+  const fields = await system.contentTypes.listFields(ct.id)
+  fieldCounts[ct.id] = fields.length
+}
+
+const staticCollections = Object.entries(config.collections)
 ---
 
-<Layout config={config} title="Content Types" activeSystem="content-types">
+<Layout config={config} title="Content Types" activeSystem="content-types" db={db}>
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
     <h1 style="font-size:22px; font-weight:600">Content Types</h1>
+    <span style="font-size:13px; color:#9ca3af">{contentTypes.length} type{contentTypes.length !== 1 ? 's' : ''} dynamique{contentTypes.length !== 1 ? 's' : ''}</span>
   </div>
 
-  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:40px; text-align:center; color:#6b7280">
-    <div style="font-size:32px; margin-bottom:12px">🗂</div>
-    <p style="font-size:16px; font-weight:500; color:#374151; margin-bottom:8px">Vos collections sont définies dans <code style="background:#f3f4f6; padding:2px 6px; border-radius:4px; font-size:14px">cms.config.ts</code></p>
-    <p style="font-size:14px; line-height:1.6; max-width:480px; margin:0 auto">
-      Modifiez ce fichier dans votre projet pour ajouter, modifier ou supprimer des collections.
-      Relancez ensuite <code style="background:#f3f4f6; padding:2px 6px; border-radius:4px">astro-cms generate</code> pour regénérer les migrations.
-    </p>
-
-    <div style="margin-top:28px; background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px; padding:20px; text-align:left; max-width:520px; margin-left:auto; margin-right:auto">
-      <p style="font-size:12px; font-weight:600; color:#9ca3af; text-transform:uppercase; letter-spacing:0.05em; margin-bottom:12px">Collections actives</p>
-      {Object.entries(config.collections).map(([name, col]) => (
-        <div style="display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid #f3f4f6">
-          <span style="font-size:14px; font-weight:500">{name}</span>
-          <span style="font-size:12px; color:#9ca3af">{Object.keys(col.fields).length} champ{Object.keys(col.fields).length !== 1 ? 's' : ''}</span>
-        </div>
-      ))}
+  <!-- Static collections info -->
+  {staticCollections.length > 0 && (
+    <div style="background:#f0f4ff; border:1px solid #c7d7ff; border-radius:8px; padding:16px; margin-bottom:24px">
+      <p style="font-size:13px; color:#2563eb; font-weight:500; margin-bottom:8px">Collections statiques (cms.config.ts)</p>
+      <div style="display:flex; gap:8px; flex-wrap:wrap">
+        {staticCollections.map(([name, col]) => (
+          <a href={`/admin/${name}`}
+             style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; background:#fff; border:1px solid #c7d7ff; border-radius:5px; font-size:13px; color:#2563eb; text-decoration:none">
+            {name}
+            <span style="color:#9ca3af">{Object.keys(col.fields).length} champs</span>
+          </a>
+        ))}
+      </div>
     </div>
+  )}
+
+  <!-- Create form -->
+  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:24px">
+    <p style="font-size:13px; font-weight:500; color:#374151; margin-bottom:12px">Nouveau type de contenu</p>
+    <form method="POST" style="display:grid; grid-template-columns:1fr 1fr 2fr auto; gap:12px; align-items:end">
+      <input type="hidden" name="_action" value="create" />
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Nom *</label>
+        <input type="text" name="name" required placeholder="ex: Projets"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Slug *</label>
+        <input type="text" name="slug" required placeholder="ex: projets"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:monospace" />
+      </div>
+
+      <div>
+        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Description</label>
+        <input type="text" name="description" placeholder="Optionnel"
+          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      </div>
+
+      <button type="submit"
+        style="padding:8px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer; white-space:nowrap">
+        + Créer
+      </button>
+    </form>
   </div>
+
+  <!-- Dynamic types list -->
+  {contentTypes.length === 0 ? (
+    <div style="text-align:center; padding:60px; color:#9ca3af">
+      <p style="font-size:16px">Aucun type de contenu dynamique.</p>
+      <p style="font-size:13px; margin-top:6px">Créez votre premier type ci-dessus — il apparaîtra dans la nav comme WordPress.</p>
+    </div>
+  ) : (
+    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
+      <table style="width:100%; border-collapse:collapse; font-size:14px">
+        <thead>
+          <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb">
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Nom</th>
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Slug</th>
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Description</th>
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Champs</th>
+            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Entrées</th>
+            <th style="padding:10px 16px; text-align:right; font-weight:500; color:#6b7280">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {contentTypes.map((ct) => (
+            <tr style="border-bottom:1px solid #f3f4f6">
+              <td style="padding:10px 16px; font-weight:500">
+                <a href={`/admin/${ct.slug}`} style="color:#111827; text-decoration:none">{ct.name}</a>
+              </td>
+              <td style="padding:10px 16px; font-family:monospace; font-size:13px; color:#6b7280">{ct.slug}</td>
+              <td style="padding:10px 16px; color:#9ca3af; font-size:13px">{ct.description ?? '—'}</td>
+              <td style="padding:10px 16px">
+                <a href={`/admin/system/content-types/${ct.id}`}
+                   style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; background:#f3f4f6; color:#374151; text-decoration:none">
+                  {fieldCounts[ct.id] ?? 0} champ{(fieldCounts[ct.id] ?? 0) !== 1 ? 's' : ''}
+                </a>
+              </td>
+              <td style="padding:10px 16px">
+                <span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; background:#f0fdf4; color:#16a34a">
+                  {entryCounts[ct.id] ?? 0} entrée{(entryCounts[ct.id] ?? 0) !== 1 ? 's' : ''}
+                </span>
+              </td>
+              <td style="padding:10px 16px; text-align:right; display:flex; gap:8px; justify-content:flex-end">
+                <a href={`/admin/system/content-types/${ct.id}`}
+                   style="padding:5px 12px; background:#f0f4ff; color:#2563eb; border-radius:5px; font-size:12px; font-weight:500; text-decoration:none">
+                  Champs
+                </a>
+                <a href={`/admin/${ct.slug}`}
+                   style="padding:5px 12px; background:#f0fdf4; color:#16a34a; border-radius:5px; font-size:12px; font-weight:500; text-decoration:none">
+                  Contenu
+                </a>
+                <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer ce type et toutes ses entrées ?')">
+                  <input type="hidden" name="_action" value="delete" />
+                  <input type="hidden" name="id" value={String(ct.id)} />
+                  <button type="submit"
+                    style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
+                    Supprimer
+                  </button>
+                </form>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
 </Layout>

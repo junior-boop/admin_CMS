@@ -80,9 +80,10 @@ export function cms(config: CMSConfig): AstroIntegration {
         route('/admin/system/forms/[id]',   `${adminDir}/system/forms/[id].astro`)
 
         // Admin section routes
-        route('/admin/system/content-types', `${adminDir}/system/content-types.astro`)
-        route('/admin/system/users',         `${adminDir}/system/users.astro`)
-        route('/admin/system/settings',      `${adminDir}/system/settings.astro`)
+        route('/admin/system/content-types',       `${adminDir}/system/content-types.astro`)
+        route('/admin/system/content-types/[id]',  `${adminDir}/system/content-types/[id].astro`)
+        route('/admin/system/users',               `${adminDir}/system/users.astro`)
+        route('/admin/system/settings',            `${adminDir}/system/settings.astro`)
       },
     },
   }

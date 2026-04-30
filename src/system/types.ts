@@ -125,6 +125,43 @@ export interface FormSubmission {
   createdAt: string
 }
 
+// ─── Dynamic Content Types ────────────────────────────────────────────────────
+
+export interface ContentType {
+  id: number
+  name: string
+  slug: string
+  description: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+export type ContentTypeFieldType = 'text' | 'richtext' | 'textarea' | 'number' | 'boolean' | 'date' | 'select' | 'email' | 'url'
+
+export interface ContentTypeField {
+  id: number
+  contentTypeId: number
+  name: string            // field key used in JSON data
+  label: string           // display label
+  type: ContentTypeFieldType
+  required: number        // 0 | 1 (SQLite boolean)
+  placeholder: string | null
+  helpText: string | null // shown below the input
+  options: string | null  // JSON array for select
+  orderIndex: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface Entry {
+  id: number
+  contentTypeId: number
+  data: string       // JSON blob
+  status: 'draft' | 'published'
+  createdAt: string
+  updatedAt: string
+}
+
 // ─── Media (built-in, stored in R2 + metadata in D1) ─────────────────────────
 
 export interface MediaEntry {

@@ -8,4 +8,5 @@ export type {
   Widget, Comment, CommentStatus,
   MediaEntry,
   Form, FormField, FormFieldType, FormSubmission,
+  ContentType, ContentTypeField, ContentTypeFieldType, Entry,
 } from './types.js'

@@ -5,6 +5,7 @@ import type {
   Widget, Comment, CommentStatus,
   MediaEntry,
   Form, FormField, FormFieldType, FormSubmission,
+  ContentType, ContentTypeField, ContentTypeFieldType, Entry,
 } from './types.js'
 
 function now() { return new Date().toISOString() }
@@ -276,6 +277,113 @@ function formsClient(db: D1Database) {
   }
 }
 
+// ─── Dynamic Content Types ────────────────────────────────────────────────────
+
+function contentTypesClient(db: D1Database) {
+  return {
+    async list(): Promise<ContentType[]> {
+      const r = await db.prepare('SELECT * FROM cms_content_types ORDER BY name').all<ContentType>()
+      return r.results
+    },
+
+    async get(id: number): Promise<ContentType | null> {
+      return db.prepare('SELECT * FROM cms_content_types WHERE id = ?').bind(id).first<ContentType>()
+    },
+
+    async getBySlug(slug: string): Promise<ContentType | null> {
+      return db.prepare('SELECT * FROM cms_content_types WHERE slug = ?').bind(slug).first<ContentType>()
+    },
+
+    async create(data: { name: string; slug: string; description?: string }): Promise<ContentType> {
+      const t = now()
+      const r = await db
+        .prepare('INSERT INTO cms_content_types (name, slug, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING *')
+        .bind(data.name, data.slug, data.description ?? null, t, t).first<ContentType>()
+      if (!r) throw new Error('Failed to create content type')
+      return r
+    },
+
+    async delete(id: number): Promise<void> {
+      await db.prepare('DELETE FROM cms_content_types WHERE id = ?').bind(id).run()
+    },
+
+    async listFields(contentTypeId: number): Promise<ContentTypeField[]> {
+      const r = await db
+        .prepare('SELECT * FROM cms_content_type_fields WHERE content_type_id = ? ORDER BY order_index')
+        .bind(contentTypeId).all<ContentTypeField>()
+      return r.results
+    },
+
+    async addField(contentTypeId: number, data: {
+      name: string; label: string; type: ContentTypeFieldType;
+      required?: boolean; placeholder?: string; helpText?: string;
+      options?: string[]; order?: number
+    }): Promise<ContentTypeField> {
+      const t = now()
+      const r = await db
+        .prepare(`INSERT INTO cms_content_type_fields
+                  (content_type_id, name, label, type, required, placeholder, help_text, options, order_index, created_at, updated_at)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
+        .bind(contentTypeId, data.name, data.label, data.type, data.required ? 1 : 0,
+              data.placeholder ?? null, data.helpText ?? null,
+              data.options ? JSON.stringify(data.options) : null,
+              data.order ?? 0, t, t)
+        .first<ContentTypeField>()
+      if (!r) throw new Error('Failed to create field')
+      return r
+    },
+
+    async deleteField(fieldId: number): Promise<void> {
+      await db.prepare('DELETE FROM cms_content_type_fields WHERE id = ?').bind(fieldId).run()
+    },
+  }
+}
+
+// ─── Entries (dynamic content type entries stored as JSON) ────────────────────
+
+function entriesClient(db: D1Database) {
+  return {
+    async list(contentTypeId: number, options: { status?: string; limit?: number } = {}): Promise<Entry[]> {
+      let sql = 'SELECT * FROM cms_entries WHERE content_type_id = ?'
+      const binds: unknown[] = [contentTypeId]
+      if (options.status) { sql += ' AND status = ?'; binds.push(options.status) }
+      sql += ' ORDER BY created_at DESC'
+      if (options.limit) { sql += ' LIMIT ?'; binds.push(options.limit) }
+      const r = await db.prepare(sql).bind(...binds).all<Entry>()
+      return r.results
+    },
+
+    async get(id: number): Promise<Entry | null> {
+      return db.prepare('SELECT * FROM cms_entries WHERE id = ?').bind(id).first<Entry>()
+    },
+
+    async create(contentTypeId: number, data: Record<string, unknown>, status: 'draft' | 'published' = 'draft'): Promise<Entry> {
+      const t = now()
+      const r = await db
+        .prepare('INSERT INTO cms_entries (content_type_id, data, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?) RETURNING *')
+        .bind(contentTypeId, JSON.stringify(data), status, t, t).first<Entry>()
+      if (!r) throw new Error('Failed to create entry')
+      return r
+    },
+
+    async update(id: number, data: Record<string, unknown>, status?: 'draft' | 'published'): Promise<Entry> {
+      const existing = await db.prepare('SELECT * FROM cms_entries WHERE id = ?').bind(id).first<Entry>()
+      if (!existing) throw new Error(`Entry ${id} not found`)
+      const merged = { ...JSON.parse(existing.data), ...data }
+      const t = now()
+      const r = await db
+        .prepare('UPDATE cms_entries SET data = ?, status = ?, updated_at = ? WHERE id = ? RETURNING *')
+        .bind(JSON.stringify(merged), status ?? existing.status, t, id).first<Entry>()
+      if (!r) throw new Error(`Entry ${id} not found`)
+      return r
+    },
+
+    async delete(id: number): Promise<void> {
+      await db.prepare('DELETE FROM cms_entries WHERE id = ?').bind(id).run()
+    },
+  }
+}
+
 // ─── Media ────────────────────────────────────────────────────────────────────
 
 function mediaDbClient(db: D1Database) {
@@ -315,6 +423,8 @@ export interface SystemClient {
   comments: ReturnType<typeof commentsClient>
   mediaDb: ReturnType<typeof mediaDbClient>
   forms: ReturnType<typeof formsClient>
+  contentTypes: ReturnType<typeof contentTypesClient>
+  entries: ReturnType<typeof entriesClient>
 }
 
 export function createSystemClient(db: D1Database): SystemClient {
@@ -327,5 +437,7 @@ export function createSystemClient(db: D1Database): SystemClient {
     comments: commentsClient(db),
     mediaDb: mediaDbClient(db),
     forms: formsClient(db),
+    contentTypes: contentTypesClient(db),
+    entries: entriesClient(db),
   }
 }
