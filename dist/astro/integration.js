@@ -44,27 +44,30 @@ export function cms(config) {
                 });
                 // Auth middleware — protects all /admin routes
                 addMiddleware({ entrypoint: middlewareEntry, order: 'pre' });
+                const route = (pattern, file) => injectRoute({ pattern, entrypoint: file, prerender: false });
                 // Auth routes
-                injectRoute({ pattern: '/admin/login', entrypoint: `${adminDir}/login.astro` });
-                injectRoute({ pattern: '/admin/logout', entrypoint: `${adminDir}/logout.astro` });
-                // Inject admin routes — zero files in user project
-                injectRoute({ pattern: '/admin', entrypoint: `${adminDir}/index.astro` });
-                injectRoute({ pattern: '/admin/media', entrypoint: `${adminDir}/media.astro` });
-                injectRoute({ pattern: '/admin/[collection]', entrypoint: `${adminDir}/collection.astro` });
-                injectRoute({ pattern: '/admin/[collection]/new', entrypoint: `${adminDir}/entry-form.astro` });
-                injectRoute({ pattern: '/admin/[collection]/[id]', entrypoint: `${adminDir}/entry-form.astro` });
+                route('/admin/login', `${adminDir}/login.astro`);
+                route('/admin/logout', `${adminDir}/logout.astro`);
+                // Content routes
+                route('/admin', `${adminDir}/index.astro`);
+                route('/admin/media', `${adminDir}/media.astro`);
+                route('/admin/[collection]', `${adminDir}/collection.astro`);
+                route('/admin/[collection]/new', `${adminDir}/entry-form.astro`);
+                route('/admin/[collection]/[id]', `${adminDir}/entry-form.astro`);
                 // Gestion system routes
-                injectRoute({ pattern: '/admin/system/tags', entrypoint: `${adminDir}/system/tags.astro` });
-                injectRoute({ pattern: '/admin/system/categories', entrypoint: `${adminDir}/system/categories.astro` });
-                injectRoute({ pattern: '/admin/system/menu', entrypoint: `${adminDir}/system/menu.astro` });
-                injectRoute({ pattern: '/admin/system/menu/[id]', entrypoint: `${adminDir}/system/menu/[id].astro` });
-                injectRoute({ pattern: '/admin/system/sections', entrypoint: `${adminDir}/system/sections.astro` });
-                injectRoute({ pattern: '/admin/system/widgets', entrypoint: `${adminDir}/system/widgets.astro` });
-                injectRoute({ pattern: '/admin/system/comments', entrypoint: `${adminDir}/system/comments.astro` });
+                route('/admin/system/tags', `${adminDir}/system/tags.astro`);
+                route('/admin/system/categories', `${adminDir}/system/categories.astro`);
+                route('/admin/system/menu', `${adminDir}/system/menu.astro`);
+                route('/admin/system/menu/[id]', `${adminDir}/system/menu/[id].astro`);
+                route('/admin/system/sections', `${adminDir}/system/sections.astro`);
+                route('/admin/system/widgets', `${adminDir}/system/widgets.astro`);
+                route('/admin/system/comments', `${adminDir}/system/comments.astro`);
+                route('/admin/system/forms', `${adminDir}/system/forms.astro`);
+                route('/admin/system/forms/[id]', `${adminDir}/system/forms/[id].astro`);
                 // Admin section routes
-                injectRoute({ pattern: '/admin/system/content-types', entrypoint: `${adminDir}/system/content-types.astro` });
-                injectRoute({ pattern: '/admin/system/users', entrypoint: `${adminDir}/system/users.astro` });
-                injectRoute({ pattern: '/admin/system/settings', entrypoint: `${adminDir}/system/settings.astro` });
+                route('/admin/system/content-types', `${adminDir}/system/content-types.astro`);
+                route('/admin/system/users', `${adminDir}/system/users.astro`);
+                route('/admin/system/settings', `${adminDir}/system/settings.astro`);
             },
         },
     };
