@@ -2,7 +2,8 @@ import { resolve, join } from 'node:path'
 import { existsSync } from 'node:fs'
 import { writeFile } from 'node:fs/promises'
 import { generate } from './generator.js'
-import { readWranglerToml, parseWranglerBindings, validateBindings } from './wrangler.js'
+import { readWranglerConfig, parseWranglerBindings, validateBindings } from './wrangler.js'
+
 import { validateConfig } from '../config/schema.js'
 
 const cwd = process.cwd()
@@ -73,17 +74,17 @@ async function cmdValidate() {
   console.log('Config is valid.')
 
   try {
-    const toml = await readWranglerToml(cwd)
-    const bindings = parseWranglerBindings(toml)
+    const { raw, format } = await readWranglerConfig(cwd)
+    const bindings = parseWranglerBindings(raw, format)
     const warnings = validateBindings(bindings)
     if (warnings.length > 0) {
       console.warn('\nWarnings:')
       for (const w of warnings) console.warn(`  ! ${w}`)
     } else {
-      console.log('wrangler.toml bindings look good.')
+      console.log('wrangler bindings look good.')
     }
   } catch {
-    console.warn('Could not read wrangler.toml — skipping binding check.')
+    console.warn('Could not read wrangler config — skipping binding check.')
   }
 }
 

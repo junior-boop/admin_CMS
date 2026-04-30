@@ -13,8 +13,14 @@ export interface WranglerBindings {
         id: string;
     }[];
 }
+type WranglerFormat = 'jsonc' | 'toml';
+export declare function readWranglerConfig(cwd: string): Promise<{
+    raw: string;
+    format: WranglerFormat;
+}>;
+/** @deprecated use readWranglerConfig */
 export declare function readWranglerToml(cwd: string): Promise<string>;
-export declare function parseWranglerBindings(toml: string): WranglerBindings;
-export declare function appendToWranglerToml(cwd: string, additions: string): Promise<void>;
+export declare function parseWranglerBindings(rawOrToml: string, format?: WranglerFormat): WranglerBindings;
 export declare function validateBindings(bindings: WranglerBindings): string[];
+export {};
 //# sourceMappingURL=wrangler.d.ts.map
