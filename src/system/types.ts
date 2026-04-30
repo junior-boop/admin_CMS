@@ -132,34 +132,34 @@ export interface ContentType {
   name: string
   slug: string
   description: string | null
-  createdAt: string
-  updatedAt: string
+  created_at: string
+  updated_at: string
 }
 
 export type ContentTypeFieldType = 'text' | 'richtext' | 'textarea' | 'number' | 'boolean' | 'date' | 'select' | 'email' | 'url'
 
 export interface ContentTypeField {
   id: number
-  contentTypeId: number
-  name: string            // field key used in JSON data
-  label: string           // display label
+  content_type_id: number
+  name: string
+  label: string
   type: ContentTypeFieldType
   required: number        // 0 | 1 (SQLite boolean)
   placeholder: string | null
-  helpText: string | null // shown below the input
+  help_text: string | null
   options: string | null  // JSON array for select
-  orderIndex: number
-  createdAt: string
-  updatedAt: string
+  order_index: number
+  created_at: string
+  updated_at: string
 }
 
 export interface Entry {
   id: number
-  contentTypeId: number
+  content_type_id: number
   data: string       // JSON blob
   status: 'draft' | 'published'
-  createdAt: string
-  updatedAt: string
+  created_at: string
+  updated_at: string
 }
 
 // ─── Media (built-in, stored in R2 + metadata in D1) ─────────────────────────

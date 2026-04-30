@@ -58,7 +58,6 @@ const typeLabels: Record<ContentTypeFieldType, string> = {
   url:      'URL',
 }
 
-const noPlaceholderTypes: ContentTypeFieldType[] = ['boolean', 'date', 'richtext']
 ---
 
 <Layout config={config} title={`Champs : ${ct.name}`} activeSystem="content-types" db={db}>
@@ -179,7 +178,7 @@ const noPlaceholderTypes: ContentTypeFieldType[] = ['boolean', 'date', 'richtext
             try { parsedOptions = field.options ? JSON.parse(field.options) : [] } catch {}
             return (
               <tr style="border-bottom:1px solid #f3f4f6">
-                <td style="padding:10px 16px; color:#9ca3af; font-size:13px">{field.orderIndex}</td>
+                <td style="padding:10px 16px; color:#9ca3af; font-size:13px">{field.order_index}</td>
                 <td style="padding:10px 16px; font-family:monospace; font-size:12px; color:#6b7280">{field.name}</td>
                 <td style="padding:10px 16px; font-weight:500">{field.label}</td>
                 <td style="padding:10px 16px">
@@ -191,7 +190,7 @@ const noPlaceholderTypes: ContentTypeFieldType[] = ['boolean', 'date', 'richtext
                   {field.placeholder ?? <span style="color:#d1d5db">—</span>}
                 </td>
                 <td style="padding:10px 16px; font-size:13px; color:#9ca3af; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
-                  {field.helpText ?? <span style="color:#d1d5db">—</span>}
+                  {field.help_text ?? <span style="color:#d1d5db">—</span>}
                 </td>
                 <td style="padding:10px 16px; font-size:12px; color:#6b7280">
                   {parsedOptions.length > 0

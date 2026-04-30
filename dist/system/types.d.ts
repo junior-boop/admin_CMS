@@ -102,31 +102,31 @@ export interface ContentType {
     name: string;
     slug: string;
     description: string | null;
-    createdAt: string;
-    updatedAt: string;
+    created_at: string;
+    updated_at: string;
 }
 export type ContentTypeFieldType = 'text' | 'richtext' | 'textarea' | 'number' | 'boolean' | 'date' | 'select' | 'email' | 'url';
 export interface ContentTypeField {
     id: number;
-    contentTypeId: number;
+    content_type_id: number;
     name: string;
     label: string;
     type: ContentTypeFieldType;
     required: number;
     placeholder: string | null;
-    helpText: string | null;
+    help_text: string | null;
     options: string | null;
-    orderIndex: number;
-    createdAt: string;
-    updatedAt: string;
+    order_index: number;
+    created_at: string;
+    updated_at: string;
 }
 export interface Entry {
     id: number;
-    contentTypeId: number;
+    content_type_id: number;
     data: string;
     status: 'draft' | 'published';
-    createdAt: string;
-    updatedAt: string;
+    created_at: string;
+    updated_at: string;
 }
 export interface MediaEntry {
     id: number;
