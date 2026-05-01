@@ -8,6 +8,7 @@ Interface d'administration complète, sans base de données SQL à écrire à la
 ## Table des matières
 
 - [Installation](#installation)
+- [Démarrage d'un nouveau projet](#démarrage-dun-nouveau-projet)
 - [Configuration rapide](#configuration-rapide)
 - [CLI](#cli)
 - [Intégration Astro](#intégration-astro)
@@ -31,6 +32,71 @@ npm install @geniusofdigital/astro-cms
 ```
 
 **Pré-requis :** Astro ≥ 4.14, Node ≥ 18, projet Cloudflare Workers (D1 + R2 + KV).
+
+---
+
+## Démarrage d'un nouveau projet
+
+Si tu veux gérer tout ton contenu depuis l'interface admin (sans définir de schéma en code), voici les étapes complètes :
+
+### 1. Installer le package
+
+```bash
+npm install @geniusofdigital/astro-cms
+```
+
+### 2. Créer `cms.config.ts` (minimal)
+
+```ts
+import { defineConfig } from '@geniusofdigital/astro-cms/config'
+
+export default defineConfig({
+  collections: {} // tout se crée depuis l'admin
+})
+```
+
+### 3. Ajouter l'intégration dans `astro.config.ts`
+
+```ts
+import { defineConfig } from 'astro/config'
+import { cms } from '@geniusofdigital/astro-cms/astro'
+import config from './cms.config'
+
+export default defineConfig({
+  output: 'server',
+  integrations: [cms(config)],
+})
+```
+
+### 4. Générer les migrations SQL
+
+```bash
+bunx astro-cms generate
+```
+
+> Avec `collections: {}`, seul le fichier système (`0001_cms_system.sql`) est généré — aucun fichier de collections statiques.
+
+### 5. Appliquer les migrations
+
+```bash
+# En local
+npx wrangler d1 migrations apply <NOM_DB> --local
+
+# En production
+npx wrangler d1 migrations apply <NOM_DB> --remote
+```
+
+> Les étapes 4 et 5 se font **une seule fois** à la création du projet, ou après une mise à jour du package qui ajoute de nouvelles tables.
+
+### 6. Lancer le projet
+
+```bash
+npm run dev
+```
+
+### 7. Créer tes collections depuis l'admin
+
+Rends-toi sur `/admin/system/content-types` pour créer tes types de contenu, définir leurs champs, puis gérer les entrées depuis `/admin/[slug-de-ta-collection]`.
 
 ---
 
