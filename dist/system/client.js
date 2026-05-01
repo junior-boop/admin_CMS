@@ -502,7 +502,7 @@ function cachedFormsClient(db, state) {
                 await state.invalidate(`cms:forms:${field.form_id}:fields`);
         },
         async listSubmissions(formId) {
-            return state.getOrFetch(`cms:forms:${formId}:submissions`, () => base.listSubmissions(formId), { ttlSeconds: 30 });
+            return state.getOrFetch(`cms:forms:${formId}:submissions`, () => base.listSubmissions(formId), { ttlSeconds: 60 });
         },
     };
 }
@@ -510,13 +510,13 @@ function cachedContentTypesClient(db, state) {
     const base = contentTypesClient(db);
     return {
         async list() {
-            return state.getOrFetch('cms:contentTypes:list', () => base.list(), { ttlSeconds: 300 });
+            return state.getOrFetch('cms:contentTypes:list', () => base.list(), { ttlSeconds: 600 });
         },
         async get(id) {
             return state.getOrFetch(`cms:contentTypes:${id}`, () => base.get(id));
         },
         async getBySlug(slug) {
-            return state.getOrFetch(`cms:contentTypes:slug:${slug}`, () => base.getBySlug(slug), { ttlSeconds: 300 });
+            return state.getOrFetch(`cms:contentTypes:slug:${slug}`, () => base.getBySlug(slug), { ttlSeconds: 600 });
         },
         async create(data) {
             const result = await base.create(data);
@@ -552,7 +552,7 @@ function cachedEntriesClient(db, state) {
             return state.getOrFetch(key, () => base.list(contentTypeId, options), { ttlSeconds: 60 });
         },
         async get(id) {
-            return state.getOrFetch(`cms:entries:${id}`, () => base.get(id), { ttlSeconds: 30 });
+            return state.getOrFetch(`cms:entries:${id}`, () => base.get(id), { ttlSeconds: 60 });
         },
         async create(contentTypeId, data, status = 'draft') {
             const result = await base.create(contentTypeId, data, status);
@@ -600,7 +600,7 @@ function cachedCommentsClient(db, state) {
     return {
         async list(options = {}) {
             const key = `cms:comments:${options.collection || 'all'}:${options.status || 'all'}`;
-            return state.getOrFetch(key, () => base.list(options), { ttlSeconds: 30 });
+            return state.getOrFetch(key, () => base.list(options), { ttlSeconds: 60 });
         },
         async create(data) {
             const result = await base.create(data);
@@ -640,41 +640,58 @@ function cachedWidgetsClient(db, state) {
 export function createCachedSystemClient(db, kv) {
     const memoryCache = new Map();
     const state = {
-        async getOrFetch(key, fetcher, options) {
-            const { ttlSeconds = 60, useCache = true } = options ?? {};
+        async getOrFetch(key, fetcher, options = {}) {
+            const { ttlSeconds = 60, useCache = true } = options;
             if (useCache) {
                 const memEntry = memoryCache.get(key);
                 if (memEntry && Date.now() - memEntry.timestamp < memEntry.ttl * 1000) {
                     return memEntry.data;
                 }
-                try {
-                    const kvVal = await kv.get(key, 'text');
-                    if (kvVal) {
-                        const data = JSON.parse(kvVal);
-                        memoryCache.set(key, { data, timestamp: Date.now(), ttl: ttlSeconds });
-                        return data;
+                if (kv) {
+                    try {
+                        const kvVal = await kv.get(key, 'text');
+                        if (kvVal) {
+                            const data = JSON.parse(kvVal);
+                            memoryCache.set(key, { data, timestamp: Date.now(), ttl: ttlSeconds });
+                            return data;
+                        }
                     }
+                    catch { }
                 }
-                catch { }
             }
             const data = await fetcher();
             if (useCache) {
                 memoryCache.set(key, { data, timestamp: Date.now(), ttl: ttlSeconds });
-                await kv.put(key, JSON.stringify(data), { expirationTtl: ttlSeconds });
+                if (kv) {
+                    try {
+                        await kv.put(key, JSON.stringify(data), { expirationTtl: ttlSeconds });
+                    }
+                    catch { }
+                }
             }
             return data;
         },
         async invalidate(key) {
             memoryCache.delete(key);
-            await kv.delete(key);
+            if (kv) {
+                try {
+                    await kv.delete(key);
+                }
+                catch { }
+            }
         },
         async invalidatePattern(prefix) {
             for (const k of memoryCache.keys()) {
                 if (k.startsWith(prefix))
                     memoryCache.delete(k);
             }
-            const list = await kv.list({ prefix });
-            await Promise.all(list.keys.map(k => kv.delete(k.name)));
+            if (kv) {
+                try {
+                    const list = await kv.list({ prefix });
+                    await Promise.all(list.keys.map(k => kv.delete(k.name)));
+                }
+                catch { }
+            }
         },
     };
     return {

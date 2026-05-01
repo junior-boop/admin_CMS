@@ -583,7 +583,7 @@ function cachedFormsClient(db: D1Database, state: StateManager) {
       if (field) await state.invalidate(`cms:forms:${field.form_id}:fields`)
     },
     async listSubmissions(formId: number): Promise<FormSubmission[]> {
-      return state.getOrFetch(`cms:forms:${formId}:submissions`, () => base.listSubmissions(formId), { ttlSeconds: 30 })
+      return state.getOrFetch(`cms:forms:${formId}:submissions`, () => base.listSubmissions(formId), { ttlSeconds: 60 })
     },
   }
 }
@@ -592,13 +592,13 @@ function cachedContentTypesClient(db: D1Database, state: StateManager) {
   const base = contentTypesClient(db)
   return {
     async list(): Promise<ContentType[]> {
-      return state.getOrFetch('cms:contentTypes:list', () => base.list(), { ttlSeconds: 300 })
+      return state.getOrFetch('cms:contentTypes:list', () => base.list(), { ttlSeconds: 600 })
     },
     async get(id: number): Promise<ContentType | null> {
       return state.getOrFetch(`cms:contentTypes:${id}`, () => base.get(id))
     },
     async getBySlug(slug: string): Promise<ContentType | null> {
-      return state.getOrFetch(`cms:contentTypes:slug:${slug}`, () => base.getBySlug(slug), { ttlSeconds: 300 })
+      return state.getOrFetch(`cms:contentTypes:slug:${slug}`, () => base.getBySlug(slug), { ttlSeconds: 600 })
     },
     async create(data: { name: string; slug: string; description?: string }): Promise<ContentType> {
       const result = await base.create(data)
@@ -634,7 +634,7 @@ function cachedEntriesClient(db: D1Database, state: StateManager) {
       return state.getOrFetch(key, () => base.list(contentTypeId, options), { ttlSeconds: 60 })
     },
     async get(id: number): Promise<Entry | null> {
-      return state.getOrFetch(`cms:entries:${id}`, () => base.get(id), { ttlSeconds: 30 })
+      return state.getOrFetch(`cms:entries:${id}`, () => base.get(id), { ttlSeconds: 60 })
     },
     async create(contentTypeId: number, data: Record<string, unknown>, status: 'draft' | 'published' = 'draft'): Promise<Entry> {
       const result = await base.create(contentTypeId, data, status)
@@ -684,7 +684,7 @@ function cachedCommentsClient(db: D1Database, state: StateManager) {
   return {
     async list(options: { collection?: string; status?: CommentStatus } = {}): Promise<Comment[]> {
       const key = `cms:comments:${options.collection || 'all'}:${options.status || 'all'}`
-      return state.getOrFetch(key, () => base.list(options), { ttlSeconds: 30 })
+      return state.getOrFetch(key, () => base.list(options), { ttlSeconds: 60 })
     },
     async create(data: Omit<Comment, 'id' | 'status' | 'createdAt' | 'updatedAt'>): Promise<Comment> {
       const result = await base.create(data)
@@ -726,43 +726,55 @@ export interface CachedSystemClient extends SystemClient {
   state: StateManager
 }
 
-export function createCachedSystemClient(db: D1Database, kv: KVNamespace): CachedSystemClient {
+export function createCachedSystemClient(db: D1Database, kv?: KVNamespace): CachedSystemClient {
   const memoryCache = new Map<string, { data: unknown; timestamp: number; ttl: number }>()
 
   const state: StateManager = {
-    async getOrFetch<T>(key: string, fetcher: () => Promise<T>, options?: { ttlSeconds?: number; useCache?: boolean }): Promise<T> {
-      const { ttlSeconds = 60, useCache = true } = options ?? {}
+    async getOrFetch<T>(key: string, fetcher: () => Promise<T>, options: { ttlSeconds?: number; useCache?: boolean } = {}): Promise<T> {
+      const { ttlSeconds = 60, useCache = true } = options
       if (useCache) {
         const memEntry = memoryCache.get(key)
         if (memEntry && Date.now() - memEntry.timestamp < memEntry.ttl * 1000) {
           return memEntry.data as T
         }
-        try {
-          const kvVal = await kv.get(key, 'text')
-          if (kvVal) {
-            const data = JSON.parse(kvVal) as T
-            memoryCache.set(key, { data, timestamp: Date.now(), ttl: ttlSeconds })
-            return data
-          }
-        } catch {}
+        if (kv) {
+          try {
+            const kvVal = await kv.get(key, 'text')
+            if (kvVal) {
+              const data = JSON.parse(kvVal) as T
+              memoryCache.set(key, { data, timestamp: Date.now(), ttl: ttlSeconds })
+              return data
+            }
+          } catch {}
+        }
       }
       const data = await fetcher()
       if (useCache) {
         memoryCache.set(key, { data, timestamp: Date.now(), ttl: ttlSeconds })
-        await kv.put(key, JSON.stringify(data), { expirationTtl: ttlSeconds })
+        if (kv) {
+          try {
+            await kv.put(key, JSON.stringify(data), { expirationTtl: ttlSeconds })
+          } catch {}
+        }
       }
       return data
     },
     async invalidate(key: string): Promise<void> {
       memoryCache.delete(key)
-      await kv.delete(key)
+      if (kv) {
+        try { await kv.delete(key) } catch {}
+      }
     },
     async invalidatePattern(prefix: string): Promise<void> {
       for (const k of memoryCache.keys()) {
         if (k.startsWith(prefix)) memoryCache.delete(k)
       }
-      const list = await kv.list({ prefix })
-      await Promise.all(list.keys.map(k => kv.delete(k.name)))
+      if (kv) {
+        try {
+          const list = await kv.list({ prefix })
+          await Promise.all(list.keys.map(k => kv.delete(k.name)))
+        } catch {}
+      }
     },
   }
 

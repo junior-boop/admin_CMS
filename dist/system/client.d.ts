@@ -144,6 +144,6 @@ export declare function createSystemClient(db: D1Database): SystemClient;
 export interface CachedSystemClient extends SystemClient {
     state: StateManager;
 }
-export declare function createCachedSystemClient(db: D1Database, kv: KVNamespace): CachedSystemClient;
+export declare function createCachedSystemClient(db: D1Database, kv?: KVNamespace): CachedSystemClient;
 export {};
 //# sourceMappingURL=client.d.ts.map
