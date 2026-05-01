@@ -120,7 +120,7 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
                   {labelText}{required && <span class="required"> *</span>}
                 </label>
                 {field.type === 'richtext' ? (
-                  <RichTextEditor name={fieldName} client:load initialValue={value} />
+                  <RichTextEditor name={fieldName} client:only="react" initialValue={value} />
                 ) : field.type === 'boolean' ? (
                   <div class="checkbox-group">
                     <input type="checkbox" id={fieldName} name={fieldName} checked={value === 'true'} class="checkbox" />
@@ -169,7 +169,7 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
                 </label>
 
                 {field.type === 'richtext' ? (
-                  <RichTextEditor name={field.name} client:load initialValue={value} />
+                  <RichTextEditor name={field.name} client:only="react" initialValue={value} />
                 ) : field.type === 'textarea' ? (
                   <textarea id={`f_${field.id}`} name={field.name}
                     rows={4}
