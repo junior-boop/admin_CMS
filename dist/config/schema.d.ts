@@ -1,6 +1,6 @@
 import { z } from 'zod';
 export declare const cmsConfigSchema: z.ZodObject<{
-    collections: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodObject<{
+    collections: z.ZodRecord<z.ZodString, z.ZodObject<{
         fields: z.ZodEffects<z.ZodRecord<z.ZodString, z.ZodDiscriminatedUnion<"type", [z.ZodObject<{
             required: z.ZodOptional<z.ZodBoolean>;
             label: z.ZodOptional<z.ZodString>;
@@ -245,90 +245,6 @@ export declare const cmsConfigSchema: z.ZodObject<{
         label?: string | undefined;
         slug?: string | undefined;
     }, {
-        fields: Record<string, {
-            type: "text";
-            required?: boolean | undefined;
-            label?: string | undefined;
-            maxLength?: number | undefined;
-        } | {
-            type: "richtext";
-            required?: boolean | undefined;
-            label?: string | undefined;
-        } | {
-            type: "number";
-            required?: boolean | undefined;
-            label?: string | undefined;
-            min?: number | undefined;
-            max?: number | undefined;
-        } | {
-            type: "boolean";
-            required?: boolean | undefined;
-            label?: string | undefined;
-            defaultValue?: boolean | undefined;
-        } | {
-            type: "date";
-            required?: boolean | undefined;
-            label?: string | undefined;
-        } | {
-            options: string[];
-            type: "select";
-            required?: boolean | undefined;
-            label?: string | undefined;
-        } | {
-            type: "media";
-            required?: boolean | undefined;
-            label?: string | undefined;
-        } | {
-            type: "relation";
-            collection: string;
-            required?: boolean | undefined;
-            label?: string | undefined;
-        }>;
-        label?: string | undefined;
-        slug?: string | undefined;
-    }>>, Record<string, {
-        fields: Record<string, {
-            type: "text";
-            required?: boolean | undefined;
-            label?: string | undefined;
-            maxLength?: number | undefined;
-        } | {
-            type: "richtext";
-            required?: boolean | undefined;
-            label?: string | undefined;
-        } | {
-            type: "number";
-            required?: boolean | undefined;
-            label?: string | undefined;
-            min?: number | undefined;
-            max?: number | undefined;
-        } | {
-            type: "boolean";
-            required?: boolean | undefined;
-            label?: string | undefined;
-            defaultValue?: boolean | undefined;
-        } | {
-            type: "date";
-            required?: boolean | undefined;
-            label?: string | undefined;
-        } | {
-            options: string[];
-            type: "select";
-            required?: boolean | undefined;
-            label?: string | undefined;
-        } | {
-            type: "media";
-            required?: boolean | undefined;
-            label?: string | undefined;
-        } | {
-            type: "relation";
-            collection: string;
-            required?: boolean | undefined;
-            label?: string | undefined;
-        }>;
-        label?: string | undefined;
-        slug?: string | undefined;
-    }>, Record<string, {
         fields: Record<string, {
             type: "text";
             required?: boolean | undefined;

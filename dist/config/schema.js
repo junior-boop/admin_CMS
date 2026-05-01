@@ -19,7 +19,7 @@ const collectionSchema = z.object({
     slug: z.string().optional(),
 });
 export const cmsConfigSchema = z.object({
-    collections: z.record(z.string(), collectionSchema).refine((cols) => Object.keys(cols).length > 0, { message: 'Config must define at least one collection' }),
+    collections: z.record(z.string(), collectionSchema),
 });
 export function validateConfig(config) {
     return cmsConfigSchema.parse(config);
