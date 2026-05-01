@@ -40,7 +40,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.runtime.json && tsc -p tsconfig.cli.json && tsc -p tsconfig.astro.json",
-    "dev": "tsc -p tsconfig.runtime.json --watch",
+    "dev": "NODE_OPTIONS=--max-old-space-size=4096 tsc -p tsconfig.runtime.json --watch",
     "typecheck": "tsc -p tsconfig.runtime.json --noEmit && tsc -p tsconfig.cli.json --noEmit && tsc -p tsconfig.astro.json --noEmit"
   },
   "dependencies": {

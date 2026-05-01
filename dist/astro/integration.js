@@ -1,6 +1,7 @@
 import { validateConfig } from '../config/schema.js';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
+import react from '@astrojs/react';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 // admin .astro files live in src/admin and are shipped as source in the npm package
 const adminDir = resolve(__dirname, '../../src/admin');
@@ -17,6 +18,7 @@ export function cms(config) {
                 logger.info('CMS config validated ✓');
                 // Virtual module — makes user config available inside admin .astro pages
                 updateConfig({
+                    integrations: [react()],
                     vite: {
                         plugins: [{
                                 name: 'astro-cms-virtual',

@@ -640,8 +640,8 @@ function cachedWidgetsClient(db, state) {
 export function createCachedSystemClient(db, kv) {
     const memoryCache = new Map();
     const state = {
-        async getOrFetch(key, fetcher, options = {}) {
-            const { ttlSeconds = 60, useCache = true } = options;
+        async getOrFetch(key, fetcher, options) {
+            const { ttlSeconds = 60, useCache = true } = options ?? {};
             if (useCache) {
                 const memEntry = memoryCache.get(key);
                 if (memEntry && Date.now() - memEntry.timestamp < memEntry.ttl * 1000) {
