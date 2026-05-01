@@ -1,12 +1,31 @@
 ---
 import Layout from './layout.astro'
-// Config is injected by the integration via virtual module
+import { env as _cfEnv } from 'cloudflare:workers'
+
 const config = (await import('virtual:astro-cms/config')).default
-const firstCollection = Object.keys(config.collections)[0]
+const env = _cfEnv as Record<string, unknown>
+const db = env['DB'] as D1Database
+
+let firstCollection = Object.keys(config.collections)[0]
+
+if (!firstCollection && db) {
+  try {
+    const r = await db.prepare('SELECT slug FROM cms_content_types ORDER BY name LIMIT 1').first<{ slug: string }>()
+    if (r) firstCollection = r.slug
+  } catch {}
+}
+
 if (firstCollection) {
   return Astro.redirect(`/admin/${firstCollection}`)
 }
 ---
-<Layout config={config} title="Dashboard">
-  <p>No collections defined yet. Run <code>astro-cms init</code> to get started.</p>
+<Layout config={config} title="Dashboard" db={db}>
+  <div style="text-align:center; padding:80px; color:#9ca3af">
+    <p style="font-size:18px; font-weight:500; margin-bottom:12px">Bienvenue dans l'admin</p>
+    <p style="font-size:14px; margin-bottom:24px">Aucune collection définie. Créez votre premier type de contenu.</p>
+    <a href="/admin/system/content-types"
+       style="background:#2563eb; color:#fff; padding:10px 20px; border-radius:6px; text-decoration:none; font-size:14px; font-weight:500">
+      Créer un type de contenu →
+    </a>
+  </div>
 </Layout>

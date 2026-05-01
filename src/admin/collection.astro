@@ -33,12 +33,16 @@ if (Astro.request.method === "POST") {
   const action = form.get("_action") as string;
 
   if (action === "delete") {
-    const id = parseInt(form.get("id") as string, 10);
-    if (isStatic) {
-      const cms = createCMSClient(config, { db });
-      await cms[collection]!.delete(id);
-    } else {
-      await system.entries.delete(id);
+    try {
+      const id = parseInt(form.get("id") as string, 10);
+      if (isStatic) {
+        const cms = createCMSClient(config, { db });
+        await cms[collection]!.delete(id);
+      } else {
+        await system.entries.delete(id);
+      }
+    } catch (e) {
+      console.error("Delete failed:", e);
     }
     return Astro.redirect(`/admin/${collection}`);
   }

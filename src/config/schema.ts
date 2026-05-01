@@ -26,10 +26,7 @@ const collectionSchema = z.object({
 })
 
 export const cmsConfigSchema = z.object({
-  collections: z.record(z.string(), collectionSchema).refine(
-    (cols) => Object.keys(cols).length > 0,
-    { message: 'Config must define at least one collection' }
-  ),
+  collections: z.record(z.string(), collectionSchema),
 })
 
 export type ValidatedCMSConfig = z.infer<typeof cmsConfigSchema>

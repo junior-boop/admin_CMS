@@ -43,43 +43,48 @@ if (isEdit && id) {
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData()
 
-  if (isStatic) {
-    const cms = createCMSClient(config, { db })
-    const collectionDef = config.collections[collection]!
-    const data: Record<string, unknown> = {}
-    for (const [fieldName, field] of Object.entries(collectionDef.fields)) {
-      const raw = form.get(fieldName)
-      if (field.type === 'boolean') {
-        data[fieldName] = raw === 'on'
-      } else if (field.type === 'number') {
-        data[fieldName] = raw ? parseFloat(raw as string) : null
+  try {
+    if (isStatic) {
+      const cms = createCMSClient(config, { db })
+      const collectionDef = config.collections[collection]!
+      const data: Record<string, unknown> = {}
+      for (const [fieldName, field] of Object.entries(collectionDef.fields)) {
+        const raw = form.get(fieldName)
+        if (field.type === 'boolean') {
+          data[fieldName] = raw === 'on'
+        } else if (field.type === 'number') {
+          data[fieldName] = raw ? parseFloat(raw as string) : null
+        } else {
+          data[fieldName] = raw ?? null
+        }
+      }
+      if (isEdit && id) {
+        await cms[collection]!.update(parseInt(id, 10), data as any)
       } else {
-        data[fieldName] = raw ?? null
+        await cms[collection]!.create(data as any)
+      }
+    } else {
+      const data: Record<string, unknown> = {}
+      for (const field of dynamicFields) {
+        const raw = form.get(field.name)
+        if (field.type === 'boolean') {
+          data[field.name] = raw === 'on'
+        } else if (field.type === 'number') {
+          data[field.name] = raw ? parseFloat(raw as string) : null
+        } else {
+          data[field.name] = raw ?? null
+        }
+      }
+      const status = (form.get('_status') as 'draft' | 'published') ?? 'draft'
+      if (isEdit && id) {
+        await system.entries.update(parseInt(id, 10), data, status)
+      } else {
+        await system.entries.create(dynamicType!.id, data, status)
       }
     }
-    if (isEdit && id) {
-      await cms[collection]!.update(parseInt(id, 10), data as any)
-    } else {
-      await cms[collection]!.create(data as any)
-    }
-  } else {
-    const data: Record<string, unknown> = {}
-    for (const field of dynamicFields) {
-      const raw = form.get(field.name)
-      if (field.type === 'boolean') {
-        data[field.name] = raw === 'on'
-      } else if (field.type === 'number') {
-        data[field.name] = raw ? parseFloat(raw as string) : null
-      } else {
-        data[field.name] = raw ?? null
-      }
-    }
-    const status = (form.get('_status') as 'draft' | 'published') ?? 'draft'
-    if (isEdit && id) {
-      await system.entries.update(parseInt(id, 10), data, status)
-    } else {
-      await system.entries.create(dynamicType!.id, data, status)
-    }
+  } catch (e) {
+    console.error('Save entry failed:', e)
+    return new Response('Erreur lors de la sauvegarde', { status: 500 })
   }
 
   return Astro.redirect(`/admin/${collection}`)
