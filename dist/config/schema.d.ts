@@ -85,13 +85,13 @@ export declare const cmsConfigSchema: z.ZodObject<{
             type: z.ZodLiteral<"select">;
             options: z.ZodArray<z.ZodString, "many">;
         }, "strip", z.ZodTypeAny, {
-            options: string[];
             type: "select";
+            options: string[];
             required?: boolean | undefined;
             label?: string | undefined;
         }, {
-            options: string[];
             type: "select";
+            options: string[];
             required?: boolean | undefined;
             label?: string | undefined;
         }>, z.ZodObject<{
@@ -148,8 +148,8 @@ export declare const cmsConfigSchema: z.ZodObject<{
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
-            options: string[];
             type: "select";
+            options: string[];
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
@@ -186,8 +186,8 @@ export declare const cmsConfigSchema: z.ZodObject<{
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
-            options: string[];
             type: "select";
+            options: string[];
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
@@ -228,8 +228,8 @@ export declare const cmsConfigSchema: z.ZodObject<{
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
-            options: string[];
             type: "select";
+            options: string[];
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
@@ -270,8 +270,8 @@ export declare const cmsConfigSchema: z.ZodObject<{
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
-            options: string[];
             type: "select";
+            options: string[];
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
@@ -314,8 +314,8 @@ export declare const cmsConfigSchema: z.ZodObject<{
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
-            options: string[];
             type: "select";
+            options: string[];
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
@@ -358,8 +358,8 @@ export declare const cmsConfigSchema: z.ZodObject<{
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
-            options: string[];
             type: "select";
+            options: string[];
             required?: boolean | undefined;
             label?: string | undefined;
         } | {
