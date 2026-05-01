@@ -1,12 +1,13 @@
 ---
 import Layout from '../layout.astro'
-import { createSystemClient } from '@geniusofdigital/astro-cms/system'
+import { createCachedSystemClient } from '@geniusofdigital/astro-cms/system'
 import { env as _cfEnv } from 'cloudflare:workers'
 
 const config = (await import('virtual:astro-cms/config')).default
 const env = _cfEnv as Record<string, unknown>
 const db = env['DB'] as D1Database
-const system = createSystemClient(db)
+const kv = env['CACHE'] as KVNamespace
+const system = createCachedSystemClient(db, kv)
 
 if (Astro.request.method === 'POST') {
   const form = await Astro.request.formData()
@@ -47,112 +48,70 @@ const staticCollections = Object.entries(config.collections)
 ---
 
 <Layout config={config} title="Content Types" activeSystem="content-types" db={db}>
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
-    <h1 style="font-size:22px; font-weight:600">Content Types</h1>
-    <span style="font-size:13px; color:#9ca3af">{contentTypes.length} type{contentTypes.length !== 1 ? 's' : ''} dynamique{contentTypes.length !== 1 ? 's' : ''}</span>
+  <div class="page-header">
+    <h1>Content Types</h1>
+    <span class="badge">{contentTypes.length} type{contentTypes.length !== 1 ? 's' : ''} dynamique{contentTypes.length !== 1 ? 's' : ''}</span>
   </div>
 
-  <!-- Static collections info -->
   {staticCollections.length > 0 && (
-    <div style="background:#f0f4ff; border:1px solid #c7d7ff; border-radius:8px; padding:16px; margin-bottom:24px">
-      <p style="font-size:13px; color:#2563eb; font-weight:500; margin-bottom:8px">Collections statiques (cms.config.ts)</p>
-      <div style="display:flex; gap:8px; flex-wrap:wrap">
+    <div class="info-card">
+      <p class="info-title">Collections statiques (cms.config.ts)</p>
+      <div class="tags-list">
         {staticCollections.map(([name, col]) => (
-          <a href={`/admin/${name}`}
-             style="display:inline-flex; align-items:center; gap:6px; padding:4px 10px; background:#fff; border:1px solid #c7d7ff; border-radius:5px; font-size:13px; color:#2563eb; text-decoration:none">
+          <a href={`/admin/${name}`} class="tag">
             {name}
-            <span style="color:#9ca3af">{Object.keys(col.fields).length} champs</span>
+            <span class="tag-count">{Object.keys(col.fields).length} champs</span>
           </a>
         ))}
       </div>
     </div>
   )}
 
-  <!-- Create form -->
-  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:24px">
-    <p style="font-size:13px; font-weight:500; color:#374151; margin-bottom:12px">Nouveau type de contenu</p>
-    <form method="POST" style="display:grid; grid-template-columns:1fr 1fr 2fr auto; gap:12px; align-items:end">
-      <input type="hidden" name="_action" value="create" />
-
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Nom *</label>
-        <input type="text" name="name" required placeholder="ex: Projets"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
-      </div>
-
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Slug *</label>
-        <input type="text" name="slug" required placeholder="ex: projets"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:monospace" />
-      </div>
-
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Description</label>
-        <input type="text" name="description" placeholder="Optionnel"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
-      </div>
-
-      <button type="submit"
-        style="padding:8px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer; white-space:nowrap">
-        + Créer
-      </button>
-    </form>
+  <div class="header-row">
+    <button class="btn btn-primary" onclick="document.getElementById('modal-new').showModal()">
+      + Nouvelle Collection
+    </button>
   </div>
 
-  <!-- Dynamic types list -->
   {contentTypes.length === 0 ? (
-    <div style="text-align:center; padding:60px; color:#9ca3af">
-      <p style="font-size:16px">Aucun type de contenu dynamique.</p>
-      <p style="font-size:13px; margin-top:6px">Créez votre premier type ci-dessus — il apparaîtra dans la nav comme WordPress.</p>
+    <div class="empty-state">
+      <p>Aucun type de contenu dynamique.</p>
+      <p class="hint">Créez votre premier type ci-dessus — il apparaîtra dans la nav comme WordPress.</p>
     </div>
   ) : (
-    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
-      <table style="width:100%; border-collapse:collapse; font-size:14px">
+    <div class="table-card">
+      <table>
         <thead>
-          <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb">
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Nom</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Slug</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Description</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Champs</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Entrées</th>
-            <th style="padding:10px 16px; text-align:right; font-weight:500; color:#6b7280">Actions</th>
+          <tr>
+            <th>Nom</th>
+            <th>Slug</th>
+            <th>Description</th>
+            <th>Champs</th>
+            <th>Entrées</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {contentTypes.map((ct) => (
-            <tr style="border-bottom:1px solid #f3f4f6">
-              <td style="padding:10px 16px; font-weight:500">
-                <a href={`/admin/${ct.slug}`} style="color:#111827; text-decoration:none">{ct.name}</a>
+            <tr>
+              <td class="name-cell">
+                <a href={`/admin/${ct.slug}`}>{ct.name}</a>
               </td>
-              <td style="padding:10px 16px; font-family:monospace; font-size:13px; color:#6b7280">{ct.slug}</td>
-              <td style="padding:10px 16px; color:#9ca3af; font-size:13px">{ct.description ?? '—'}</td>
-              <td style="padding:10px 16px">
-                <a href={`/admin/system/content-types/${ct.id}`}
-                   style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; background:#f3f4f6; color:#374151; text-decoration:none">
-                  {fieldCounts[ct.id] ?? 0} champ{(fieldCounts[ct.id] ?? 0) !== 1 ? 's' : ''}
-                </a>
+              <td class="mono">{ct.slug}</td>
+              <td class="muted">{ct.description ?? '—'}</td>
+              <td>
+                <span class="badge-sm">{fieldCounts[ct.id] ?? 0} champ{(fieldCounts[ct.id] ?? 0) !== 1 ? 's' : ''}</span>
               </td>
-              <td style="padding:10px 16px">
-                <span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; background:#f0fdf4; color:#16a34a">
-                  {entryCounts[ct.id] ?? 0} entrée{(entryCounts[ct.id] ?? 0) !== 1 ? 's' : ''}
-                </span>
+              <td>
+                <span class="badge-sm success">{entryCounts[ct.id] ?? 0} entrée{(entryCounts[ct.id] ?? 0) !== 1 ? 's' : ''}</span>
               </td>
-              <td style="padding:10px 16px; text-align:right; display:flex; gap:8px; justify-content:flex-end">
-                <a href={`/admin/system/content-types/${ct.id}`}
-                   style="padding:5px 12px; background:#f0f4ff; color:#2563eb; border-radius:5px; font-size:12px; font-weight:500; text-decoration:none">
-                  Champs
-                </a>
-                <a href={`/admin/${ct.slug}`}
-                   style="padding:5px 12px; background:#f0fdf4; color:#16a34a; border-radius:5px; font-size:12px; font-weight:500; text-decoration:none">
-                  Contenu
-                </a>
-                <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer ce type et toutes ses entrées ?')">
+              <td class="actions">
+                <a href={`/admin/system/content-types/${ct.id}`} class="btn btn-secondary btn-sm">Champs</a>
+                <a href={`/admin/${ct.slug}`} class="btn btn-secondary btn-sm green">Contenu</a>
+                <form method="POST" onsubmit="return confirm('Supprimer ce type et toutes ses entrées ?')">
                   <input type="hidden" name="_action" value="delete" />
                   <input type="hidden" name="id" value={String(ct.id)} />
-                  <button type="submit"
-                    style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
-                    Supprimer
-                  </button>
+                  <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
                 </form>
               </td>
             </tr>
@@ -161,4 +120,184 @@ const staticCollections = Object.entries(config.collections)
       </table>
     </div>
   )}
+
+  <dialog id="modal-new" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Nouvelle Collection</h2>
+        <button class="close-btn" onclick="document.getElementById('modal-new').close()">×</button>
+      </div>
+      <form method="POST">
+        <input type="hidden" name="_action" value="create" />
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nom *</label>
+            <input type="text" name="name" required placeholder="ex: Projets" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label>Slug *</label>
+            <input type="text" name="slug" required placeholder="ex: projets" class="form-input mono" />
+          </div>
+          <div class="form-group">
+            <label>Description</label>
+            <input type="text" name="description" placeholder="Optionnel" class="form-input" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-new').close()">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
 </Layout>
+
+<style>
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+  }
+  .page-header h1 { font-size: 24px; font-weight: 600; color: var(--text); }
+  .badge {
+    font-size: 13px;
+    color: var(--text-light);
+    background: var(--surface-elevated);
+    padding: 6px 12px;
+    border-radius: 20px;
+  }
+  .info-card {
+    background: var(--primary-light);
+    border: 1px solid #c7d7ff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 24px;
+  }
+  .info-title {
+    font-size: 13px;
+    color: var(--primary);
+    font-weight: 500;
+    margin-bottom: 12px;
+  }
+  .tags-list { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: var(--surface);
+    border: 1px solid #c7d7ff;
+    border-radius: 6px;
+    font-size: 13px;
+    color: var(--primary);
+    text-decoration: none;
+    transition: all 0.15s;
+  }
+  .tag:hover { background: var(--primary-light); }
+  .tag-count { color: var(--text-light); font-size: 12px; }
+  .header-row { margin-bottom: 20px; display: flex; justify-content: flex-end; }
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th {
+    padding: 14px 20px;
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-light);
+    background: var(--surface-elevated);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  td { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover { background: var(--surface-elevated); }
+  .name-cell { font-weight: 500; }
+  .name-cell a { color: var(--text); text-decoration: none; }
+  .name-cell a:hover { color: var(--primary); }
+  .mono { font-family: monospace; font-size: 13px; color: var(--text-muted); }
+  .muted { color: var(--text-light); }
+  .badge-sm {
+    display: inline-block;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    background: var(--surface-elevated);
+    color: var(--text-muted);
+  }
+  .badge-sm.success { background: #f0fdf4; color: var(--success); }
+  .actions { text-align: right; display: flex; gap: 8px; justify-content: flex-end; white-space: nowrap; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .green { color: var(--success); border-color: #bbf7d0; background: #f0fdf4; }
+  .empty-state {
+    text-align: center;
+    padding: 60px;
+    color: var(--text-light);
+    background: var(--surface);
+    border-radius: 16px;
+  }
+  .hint { font-size: 13px; margin-top: 8px; }
+
+  .modal {
+    border: none;
+    border-radius: 20px;
+    padding: 0;
+    background: transparent;
+    max-width: 480px;
+    width: 90%;
+    box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+  }
+  .modal::backdrop { background: rgb(0 0 0 / 0.5); backdrop-filter: blur(4px); }
+  .modal-content {
+    background: var(--surface);
+    border-radius: 20px;
+    overflow: hidden;
+  }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-header h2 { font-size: 18px; font-weight: 600; color: var(--text); }
+  .close-btn {
+    background: none;
+    border: none;
+    font-size: 28px;
+    color: var(--text-light);
+    cursor: pointer;
+    line-height: 1;
+    padding: 0;
+  }
+  .close-btn:hover { color: var(--text); }
+  .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .modal-footer {
+    padding: 16px 24px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+  }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .form-input {
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .form-input:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15);
+  }
+  .mono { font-family: monospace; }
+</style>

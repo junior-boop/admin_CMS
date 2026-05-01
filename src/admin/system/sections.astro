@@ -1,13 +1,14 @@
 ---
 import Layout from '../layout.astro'
-import { createSystemClient } from '@geniusofdigital/astro-cms/system'
+import { createCachedSystemClient } from '@geniusofdigital/astro-cms/system'
 import type { SectionType } from '@geniusofdigital/astro-cms/system'
 import { env as _cfEnv } from 'cloudflare:workers'
 
 const config = (await import('virtual:astro-cms/config')).default
 const env = _cfEnv as Record<string, unknown>
 const db = env['DB'] as D1Database
-const system = createSystemClient(db)
+const kv = env['CACHE'] as KVNamespace
+const system = createCachedSystemClient(db, kv)
 
 const SECTION_TYPES: SectionType[] = ['hero', 'text', 'gallery', 'cta', 'custom']
 
@@ -49,95 +50,41 @@ const byPage = sections.reduce<Record<string, typeof sections>>((acc, s) => {
 ---
 
 <Layout config={config} title="Sections" activeSystem="sections">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
-    <h1 style="font-size:22px; font-weight:600">Sections</h1>
-    <span style="font-size:13px; color:#9ca3af">{sections.length} section{sections.length !== 1 ? 's' : ''}</span>
+  <div class="page-header">
+    <h1>Sections</h1>
+    <span class="badge">{sections.length} section{sections.length !== 1 ? 's' : ''}</span>
   </div>
 
-  <!-- Create form -->
-  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:24px">
-    <p style="font-size:13px; font-weight:500; color:#374151; margin-bottom:12px">Nouvelle section</p>
-    <form method="POST" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px">
-      <input type="hidden" name="_action" value="create" />
-
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Page *</label>
-        <input type="text" name="page" required placeholder="ex: home"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
-      </div>
-
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Type *</label>
-        <select name="type" required
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; background:#fff">
-          {SECTION_TYPES.map(t => <option value={t}>{t}</option>)}
-        </select>
-      </div>
-
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Ordre</label>
-        <input type="number" name="order" value="0" min="0"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
-      </div>
-
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Titre</label>
-        <input type="text" name="title" placeholder="Optionnel"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
-      </div>
-
-      <div style="grid-column:2/-1">
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Contenu</label>
-        <input type="text" name="content" placeholder="Optionnel"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
-      </div>
-
-      <div style="grid-column:1/-1; display:flex; justify-content:flex-end">
-        <button type="submit"
-          style="padding:8px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer">
-          + Ajouter
-        </button>
-      </div>
-    </form>
+  <div class="header-row">
+    <button class="btn btn-primary" onclick="document.getElementById('modal-new').showModal()">
+      + Nouvelle section
+    </button>
   </div>
 
-  <!-- Sections list -->
   {sections.length === 0 ? (
-    <div style="text-align:center; padding:60px; color:#9ca3af">
-      <p style="font-size:16px">Aucune section pour l'instant.</p>
+    <div class="empty-state">
+      <p>Aucune section pour l'instant.</p>
     </div>
   ) : (
-    <div style="display:flex; flex-direction:column; gap:20px">
+    <div class="sections-list">
       {Object.entries(byPage).map(([page, pageSections]) => (
-        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
-          <div style="background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:10px 16px">
-            <p style="font-size:13px; font-weight:600; color:#374151">
-              Page: <span style="font-family:monospace; color:#2563eb">{page}</span>
-            </p>
+        <div class="section-card">
+          <div class="section-header">
+            Page: <span class="page-slug">{page}</span>
           </div>
-          <table style="width:100%; border-collapse:collapse; font-size:14px">
+          <table>
             <tbody>
               {pageSections.map((s) => (
-                <tr style="border-bottom:1px solid #f3f4f6">
-                  <td style="padding:10px 16px; width:80px">
-                    <span style="
-                      display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:500;
-                      background:#f0f4ff; color:#2563eb
-                    ">{s.type}</span>
-                  </td>
-                  <td style="padding:10px 16px; font-weight:500">{s.title ?? <span style="color:#d1d5db">Sans titre</span>}</td>
-                  <td style="padding:10px 16px; color:#9ca3af; font-size:13px; max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
-                    {s.content ?? ''}
-                  </td>
-                  <td style="padding:10px 16px; color:#9ca3af; font-size:13px; width:60px">#{s.order_index}</td>
-                  <td style="padding:10px 16px; text-align:right">
-                    <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer cette section ?')">
+                <tr>
+                  <td class="type-cell"><span class="type-badge">{s.type}</span></td>
+                  <td class="title-cell">{s.title ?? <span class="placeholder">Sans titre</span>}</td>
+                  <td class="content-cell">{s.content ?? ''}</td>
+                  <td class="order-cell">#{s.order_index}</td>
+                  <td class="actions-cell">
+                    <form method="POST" onsubmit="return confirm('Supprimer cette section ?')">
                       <input type="hidden" name="_action" value="delete" />
                       <input type="hidden" name="id" value={String(s.id)} />
-                      <button type="submit"
-                        style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
-                        Supprimer
-                      </button>
+                      <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
                     </form>
                   </td>
                 </tr>
@@ -148,4 +95,85 @@ const byPage = sections.reduce<Record<string, typeof sections>>((acc, s) => {
       ))}
     </div>
   )}
+
+  <dialog id="modal-new" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Nouvelle section</h2>
+        <button class="close-btn" onclick="document.getElementById('modal-new').close()">×</button>
+      </div>
+      <form method="POST">
+        <input type="hidden" name="_action" value="create" />
+        <div class="modal-body">
+          <div class="form-row">
+            <div class="form-group">
+              <label>Page *</label>
+              <input type="text" name="page" required placeholder="ex: home" class="form-input" />
+            </div>
+            <div class="form-group">
+              <label>Type *</label>
+              <select name="type" required class="form-input">
+                {SECTION_TYPES.map(t => <option value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div class="form-group small">
+              <label>Ordre</label>
+              <input type="number" name="order" value="0" min="0" class="form-input" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Titre</label>
+            <input type="text" name="title" placeholder="Optionnel" class="form-input" />
+          </div>
+          <div class="form-group">
+            <label>Contenu</label>
+            <input type="text" name="content" placeholder="Optionnel" class="form-input" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-new').close()">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
 </Layout>
+
+<style>
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .page-header h1 { font-size: 24px; font-weight: 600; color: var(--text); }
+  .badge { font-size: 13px; color: var(--text-light); background: var(--surface-elevated); padding: 6px 12px; border-radius: 20px; }
+  .header-row { margin-bottom: 20px; display: flex; justify-content: flex-end; }
+  .sections-list { display: flex; flex-direction: column; gap: 20px; }
+  .section-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+  .section-header { background: var(--surface-elevated); padding: 12px 20px; font-size: 13px; font-weight: 600; color: var(--text); border-bottom: 1px solid var(--border); }
+  .page-slug { font-family: monospace; color: var(--primary); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td { padding: 12px 20px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  .type-cell { width: 90px; }
+  .type-badge { display: inline-block; padding: 4px 10px; border-radius: 6px; font-size: 12px; font-weight: 500; background: var(--primary-light); color: var(--primary); }
+  .title-cell { font-weight: 500; }
+  .placeholder { color: var(--border); }
+  .content-cell { color: var(--text-light); font-size: 13px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .order-cell { color: var(--text-light); font-size: 13px; width: 60px; }
+  .actions-cell { text-align: right; width: 100px; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+  .empty-state { text-align: center; padding: 60px; color: var(--text-light); background: var(--surface); border-radius: 16px; }
+
+  .modal { border: none; border-radius: 20px; padding: 0; background: transparent; max-width: 520px; width: 90%; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); }
+  .modal::backdrop { background: rgb(0 0 0 / 0.5); backdrop-filter: blur(4px); }
+  .modal-content { background: var(--surface); border-radius: 20px; overflow: hidden; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .modal-header h2 { font-size: 18px; font-weight: 600; color: var(--text); }
+  .close-btn { background: none; border: none; font-size: 28px; color: var(--text-light); cursor: pointer; line-height: 1; padding: 0; }
+  .close-btn:hover { color: var(--text); }
+  .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr 100px; gap: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .form-input { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; transition: all 0.2s; }
+  .form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15); }
+  @media (max-width: 600px) { .form-row { grid-template-columns: 1fr; } .form-group.small { max-width: 100%; } }
+</style>

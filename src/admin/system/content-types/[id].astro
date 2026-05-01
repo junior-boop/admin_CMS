@@ -1,13 +1,14 @@
 ---
 import Layout from '../../layout.astro'
-import { createSystemClient } from '@geniusofdigital/astro-cms/system'
+import { createCachedSystemClient } from '@geniusofdigital/astro-cms/system'
 import type { ContentTypeFieldType } from '@geniusofdigital/astro-cms/system'
 import { env as _cfEnv } from 'cloudflare:workers'
 
 const config = (await import('virtual:astro-cms/config')).default
 const env = _cfEnv as Record<string, unknown>
 const db = env['DB'] as D1Database
-const system = createSystemClient(db)
+const kv = env['CACHE'] as KVNamespace
+const system = createCachedSystemClient(db, kv)
 
 const { id } = Astro.params as { id: string }
 const ctId = parseInt(id, 10)

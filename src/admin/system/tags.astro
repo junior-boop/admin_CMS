@@ -1,12 +1,13 @@
 ---
 import Layout from '../layout.astro'
-import { createSystemClient } from '@geniusofdigital/astro-cms/system'
+import { createCachedSystemClient } from '@geniusofdigital/astro-cms/system'
 import { env as _cfEnv } from 'cloudflare:workers'
 
 const config = (await import('virtual:astro-cms/config')).default
 const env = _cfEnv as Record<string, unknown>
 const db = env['DB'] as D1Database
-const system = createSystemClient(db)
+const kv = env['CACHE'] as KVNamespace
+const system = createCachedSystemClient(db, kv)
 
 function toSlug(name: string) {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
@@ -33,60 +34,43 @@ const tags = await system.tags.list()
 ---
 
 <Layout config={config} title="Tags" activeSystem="tags">
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
-    <h1 style="font-size:22px; font-weight:600">Tags</h1>
-    <span style="font-size:13px; color:#9ca3af">{tags.length} tag{tags.length !== 1 ? 's' : ''}</span>
+  <div class="page-header">
+    <h1>Tags</h1>
+    <span class="badge">{tags.length} tag{tags.length !== 1 ? 's' : ''}</span>
   </div>
 
-  <!-- Create form -->
-  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:24px">
-    <p style="font-size:13px; font-weight:500; color:#374151; margin-bottom:12px">Nouveau tag</p>
-    <form method="POST" style="display:flex; gap:10px; align-items:flex-end">
-      <input type="hidden" name="_action" value="create" />
-      <div style="flex:1">
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Nom</label>
-        <input type="text" name="name" required placeholder="ex: JavaScript"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
-      </div>
-      <button type="submit"
-        style="padding:8px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer; white-space:nowrap">
-        + Ajouter
-      </button>
-    </form>
+  <div class="header-row">
+    <button class="btn btn-primary" onclick="document.getElementById('modal-new').showModal()">
+      + Nouveau tag
+    </button>
   </div>
 
-  <!-- Tags list -->
   {tags.length === 0 ? (
-    <div style="text-align:center; padding:60px; color:#9ca3af">
-      <p style="font-size:16px">Aucun tag pour l'instant.</p>
+    <div class="empty-state">
+      <p>Aucun tag pour l'instant.</p>
     </div>
   ) : (
-    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
-      <table style="width:100%; border-collapse:collapse; font-size:14px">
+    <div class="table-card">
+      <table>
         <thead>
-          <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb">
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Nom</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Slug</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Créé le</th>
-            <th style="padding:10px 16px; text-align:right; font-weight:500; color:#6b7280">Actions</th>
+          <tr>
+            <th>Nom</th>
+            <th>Slug</th>
+            <th>Créé le</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {tags.map((tag) => (
-            <tr style="border-bottom:1px solid #f3f4f6">
-              <td style="padding:10px 16px; font-weight:500">{tag.name}</td>
-              <td style="padding:10px 16px; color:#6b7280; font-size:13px; font-family:monospace">{tag.slug}</td>
-              <td style="padding:10px 16px; color:#9ca3af; font-size:13px">
-                {new Date(tag.createdAt).toLocaleDateString()}
-              </td>
-              <td style="padding:10px 16px; text-align:right">
-                <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer ce tag ?')">
+            <tr>
+              <td class="name">{tag.name}</td>
+              <td class="mono">{tag.slug}</td>
+              <td class="muted">{new Date(tag.createdAt).toLocaleDateString()}</td>
+              <td class="actions">
+                <form method="POST" onsubmit="return confirm('Supprimer ce tag ?')">
                   <input type="hidden" name="_action" value="delete" />
                   <input type="hidden" name="id" value={String(tag.id)} />
-                  <button type="submit"
-                    style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
-                    Supprimer
-                  </button>
+                  <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
                 </form>
               </td>
             </tr>
@@ -95,4 +79,59 @@ const tags = await system.tags.list()
       </table>
     </div>
   )}
+
+  <dialog id="modal-new" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Nouveau tag</h2>
+        <button class="close-btn" onclick="document.getElementById('modal-new').close()">×</button>
+      </div>
+      <form method="POST">
+        <input type="hidden" name="_action" value="create" />
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nom</label>
+            <input type="text" name="name" required placeholder="ex: JavaScript" class="form-input" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-new').close()">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
 </Layout>
+
+<style>
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .page-header h1 { font-size: 24px; font-weight: 600; color: var(--text); }
+  .badge { font-size: 13px; color: var(--text-light); background: var(--surface-elevated); padding: 6px 12px; border-radius: 20px; }
+  .header-row { margin-bottom: 20px; display: flex; justify-content: flex-end; }
+  .table-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; box-shadow: var(--shadow); }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  th { padding: 14px 20px; text-align: left; font-weight: 500; color: var(--text-light); background: var(--surface-elevated); font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
+  td { padding: 14px 20px; border-bottom: 1px solid var(--border); }
+  tr:last-child td { border-bottom: none; }
+  tr:hover { background: var(--surface-elevated); }
+  .name { font-weight: 500; }
+  .mono { font-family: monospace; color: var(--text-muted); }
+  .muted { color: var(--text-light); }
+  .actions { text-align: right; }
+
+  .modal { border: none; border-radius: 20px; padding: 0; background: transparent; max-width: 420px; width: 90%; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); }
+  .modal::backdrop { background: rgb(0 0 0 / 0.5); backdrop-filter: blur(4px); }
+  .modal-content { background: var(--surface); border-radius: 20px; overflow: hidden; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .modal-header h2 { font-size: 18px; font-weight: 600; color: var(--text); }
+  .close-btn { background: none; border: none; font-size: 28px; color: var(--text-light); cursor: pointer; line-height: 1; padding: 0; }
+  .close-btn:hover { color: var(--text); }
+  .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .form-input { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; transition: all 0.2s; }
+  .form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15); }
+  .empty-state { text-align: center; padding: 60px; color: var(--text-light); background: var(--surface); border-radius: 16px; }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+</style>

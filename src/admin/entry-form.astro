@@ -1,7 +1,7 @@
 ---
 import Layout from './layout.astro'
 import { createCMSClient } from '@geniusofdigital/astro-cms'
-import { createSystemClient } from '@geniusofdigital/astro-cms/system'
+import { createCachedSystemClient } from '@geniusofdigital/astro-cms/system'
 import type { ContentType, ContentTypeField } from '@geniusofdigital/astro-cms/system'
 import { env as _cfEnv } from 'cloudflare:workers'
 
@@ -10,7 +10,8 @@ const { collection, id } = Astro.params as { collection: string; id?: string }
 
 const env = _cfEnv as Record<string, unknown>
 const db = env['DB'] as D1Database
-const system = createSystemClient(db)
+const kv = env['CACHE'] as KVNamespace
+const system = createCachedSystemClient(db, kv)
 
 const isStatic = Boolean(config.collections[collection])
 let dynamicType: ContentType | null = null
@@ -106,40 +107,44 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
     <form method="POST" id="entry-form" class="form-card">
 
       {/* ── Static collection fields ── */}
-      {isStatic && Object.entries(config.collections[collection]!.fields).map(([fieldName, field]) => {
-        const value = staticEntry ? String(staticEntry[fieldName] ?? '') : ''
-        const labelText = (field.label ?? fieldName).charAt(0).toUpperCase() + (field.label ?? fieldName).slice(1)
-        const required = field.required
-        return (
-          <div class="form-group">
-            <label for={fieldName} class="form-label">
-              {labelText}{required && <span class="required"> *</span>}
-            </label>
-            {field.type === 'richtext' ? (
-              <div>
-                <input type="hidden" name={fieldName} id={fieldName} value={value} />
-                <div class="tiptap-wrap" data-name={fieldName} data-initial={value}></div>
+      {isStatic && (
+        <div class="fields-grid">
+          {Object.entries(config.collections[collection]!.fields).map(([fieldName, field]) => {
+            const value = staticEntry ? String(staticEntry[fieldName] ?? '') : ''
+            const labelText = (field.label ?? fieldName).charAt(0).toUpperCase() + (field.label ?? fieldName).slice(1)
+            const required = field.required
+            return (
+              <div class="form-group" class:list={[{ 'full-width': field.type === 'richtext' }]}>
+                <label for={fieldName} class="form-label">
+                  {labelText}{required && <span class="required"> *</span>}
+                </label>
+                {field.type === 'richtext' ? (
+                  <div>
+                    <input type="hidden" name={fieldName} id={fieldName} value={value} />
+                    <div class="tiptap-wrap" data-name={fieldName} data-initial={value}></div>
+                  </div>
+                ) : field.type === 'boolean' ? (
+                  <div class="checkbox-group">
+                    <input type="checkbox" id={fieldName} name={fieldName} checked={value === 'true'} class="checkbox" />
+                    <label for={fieldName} class="checkbox-label">{labelText}</label>
+                  </div>
+                ) : field.type === 'select' ? (
+                  <select id={fieldName} name={fieldName} required={required} class="form-select">
+                    <option value="">— Choisir —</option>
+                    {field.options.map((opt: string) => <option value={opt} selected={value === opt}>{opt}</option>)}
+                  </select>
+                ) : field.type === 'number' ? (
+                  <input type="number" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
+                ) : field.type === 'date' ? (
+                  <input type="date" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
+                ) : (
+                  <input type="text" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
+                )}
               </div>
-            ) : field.type === 'boolean' ? (
-              <div class="checkbox-group">
-                <input type="checkbox" id={fieldName} name={fieldName} checked={value === 'true'} class="checkbox" />
-                <label for={fieldName} class="checkbox-label">{labelText}</label>
-              </div>
-            ) : field.type === 'select' ? (
-              <select id={fieldName} name={fieldName} required={required} class="form-select">
-                <option value="">— Choisir —</option>
-                {field.options.map((opt: string) => <option value={opt} selected={value === opt}>{opt}</option>)}
-              </select>
-            ) : field.type === 'number' ? (
-              <input type="number" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
-            ) : field.type === 'date' ? (
-              <input type="date" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
-            ) : (
-              <input type="text" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
-            )}
-          </div>
-        )
-      })}
+            )
+          })}
+        </div>
+      )}
 
       {/* ── Dynamic collection fields ── */}
       {!isStatic && dynamicFields.length === 0 && (
@@ -149,66 +154,71 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
         </div>
       )}
 
-      {!isStatic && dynamicFields.map((field) => {
-        const value = String(dynamicEntryData[field.name] ?? '')
-        const required = Boolean(field.required)
-        const ph = field.placeholder ?? undefined
-        let parsedOptions: string[] = []
-        try { parsedOptions = field.options ? JSON.parse(field.options) : [] } catch {}
-        return (
-          <div class="form-group">
-            <label for={`f_${field.id}`} class="form-label">
-              {field.label}{required && <span class="required"> *</span>}
-              <span class="field-name">{field.name}</span>
-            </label>
+      {!isStatic && dynamicFields.length > 0 && (
+        <div class="fields-grid">
+          {dynamicFields.map((field) => {
+            const value = String(dynamicEntryData[field.name] ?? '')
+            const required = Boolean(field.required)
+            const ph = field.placeholder ?? undefined
+            let parsedOptions: string[] = []
+            try { parsedOptions = field.options ? JSON.parse(field.options) : [] } catch {}
+            const isWide = field.type === 'richtext' || field.type === 'textarea'
+            return (
+              <div class="form-group" class:list={[{ 'full-width': isWide }]}>
+                <label for={`f_${field.id}`} class="form-label">
+                  {field.label}{required && <span class="required"> *</span>}
+                  <span class="field-name">{field.name}</span>
+                </label>
 
-            {field.type === 'richtext' ? (
-              <div>
-                <input type="hidden" name={field.name} id={`f_${field.id}`} value={value} />
-                <div class="tiptap-wrap" data-name={field.name} data-initial={value}></div>
-              </div>
-            ) : field.type === 'textarea' ? (
-              <textarea id={`f_${field.id}`} name={field.name}
-                rows={4}
-                required={required}
-                placeholder={ph}
-                class="form-textarea">
-                {value}
-              </textarea>
-            ) : field.type === 'boolean' ? (
-              <div class="checkbox-group">
-                <input type="checkbox" id={`f_${field.id}`} name={field.name}
-                  checked={value === 'true'} class="checkbox" />
-                <label for={`f_${field.id}`} class="checkbox-label">{field.label}</label>
-              </div>
-            ) : field.type === 'select' ? (
-              <select id={`f_${field.id}`} name={field.name} required={required} class="form-select">
-                <option value="">{ph ?? '— Choisir —'}</option>
-                {parsedOptions.map((opt) => <option value={opt} selected={value === opt}>{opt}</option>)}
-              </select>
-            ) : field.type === 'number' ? (
-              <input type="number" id={`f_${field.id}`} name={field.name}
-                value={value} required={required} placeholder={ph} class="form-input" />
-            ) : field.type === 'date' ? (
-              <input type="date" id={`f_${field.id}`} name={field.name}
-                value={value} required={required} class="form-input" />
-            ) : field.type === 'email' ? (
-              <input type="email" id={`f_${field.id}`} name={field.name}
-                value={value} required={required} placeholder={ph ?? 'exemple@domaine.com'} class="form-input" />
-            ) : field.type === 'url' ? (
-              <input type="url" id={`f_${field.id}`} name={field.name}
-                value={value} required={required} placeholder={ph ?? 'https://'} class="form-input" />
-            ) : (
-              <input type="text" id={`f_${field.id}`} name={field.name}
-                value={value} required={required} placeholder={ph} class="form-input" />
-            )}
+                {field.type === 'richtext' ? (
+                  <div>
+                    <input type="hidden" name={field.name} id={`f_${field.id}`} value={value} />
+                    <div class="tiptap-wrap" data-name={field.name} data-initial={value}></div>
+                  </div>
+                ) : field.type === 'textarea' ? (
+                  <textarea id={`f_${field.id}`} name={field.name}
+                    rows={4}
+                    required={required}
+                    placeholder={ph}
+                    class="form-textarea">
+                    {value}
+                  </textarea>
+                ) : field.type === 'boolean' ? (
+                  <div class="checkbox-group">
+                    <input type="checkbox" id={`f_${field.id}`} name={field.name}
+                      checked={value === 'true'} class="checkbox" />
+                    <label for={`f_${field.id}`} class="checkbox-label">{field.label}</label>
+                  </div>
+                ) : field.type === 'select' ? (
+                  <select id={`f_${field.id}`} name={field.name} required={required} class="form-select">
+                    <option value="">{ph ?? '— Choisir —'}</option>
+                    {parsedOptions.map((opt) => <option value={opt} selected={value === opt}>{opt}</option>)}
+                  </select>
+                ) : field.type === 'number' ? (
+                  <input type="number" id={`f_${field.id}`} name={field.name}
+                    value={value} required={required} placeholder={ph} class="form-input" />
+                ) : field.type === 'date' ? (
+                  <input type="date" id={`f_${field.id}`} name={field.name}
+                    value={value} required={required} class="form-input" />
+                ) : field.type === 'email' ? (
+                  <input type="email" id={`f_${field.id}`} name={field.name}
+                    value={value} required={required} placeholder={ph ?? 'exemple@domaine.com'} class="form-input" />
+                ) : field.type === 'url' ? (
+                  <input type="url" id={`f_${field.id}`} name={field.name}
+                    value={value} required={required} placeholder={ph ?? 'https://'} class="form-input" />
+                ) : (
+                  <input type="text" id={`f_${field.id}`} name={field.name}
+                    value={value} required={required} placeholder={ph} class="form-input" />
+                )}
 
-            {field.help_text && (
-              <p class="help-text">{field.help_text}</p>
-            )}
-          </div>
-        )
-      })}
+                {field.help_text && (
+                  <p class="help-text">{field.help_text}</p>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      )}
 
       {/* ── Status (dynamic only) ── */}
       {!isStatic && dynamicFields.length > 0 && (
@@ -276,6 +286,17 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
     flex-direction: column;
     gap: 24px;
     box-shadow: var(--shadow-lg);
+  }
+  .fields-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+  .fields-grid .full-width {
+    grid-column: 1 / -1;
+  }
+  @media (max-width: 600px) {
+    .fields-grid { grid-template-columns: 1fr; }
   }
   .form-group {
     display: flex;

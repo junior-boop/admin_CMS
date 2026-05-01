@@ -1,5 +1,5 @@
-export { createSystemClient } from './client.js'
-export type { SystemClient } from './client.js'
+export { createSystemClient, createCachedSystemClient } from './client.js'
+export type { SystemClient, CachedSystemClient } from './client.js'
 export { SYSTEM_SCHEMA_SQL } from './schemas.js'
 export type {
   Menu, MenuItem, MenuWithItems,

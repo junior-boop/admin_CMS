@@ -1,12 +1,13 @@
 ---
 import Layout from '../layout.astro'
-import { createSystemClient } from '@geniusofdigital/astro-cms/system'
+import { createCachedSystemClient } from '@geniusofdigital/astro-cms/system'
 import { env as _cfEnv } from 'cloudflare:workers'
 
 const config = (await import('virtual:astro-cms/config')).default
 const env = _cfEnv as Record<string, unknown>
 const db = env['DB'] as D1Database
-const system = createSystemClient(db)
+const kv = env['CACHE'] as KVNamespace
+const system = createCachedSystemClient(db, kv)
 
 function toSlug(name: string) {
   return name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
@@ -38,18 +39,10 @@ const menus = await system.menu.list()
     <span class="badge">{menus.length} menu{menus.length !== 1 ? 's' : ''}</span>
   </div>
 
-  <div class="create-card">
-    <p class="card-title">Nouveau menu</p>
-    <form method="POST" class="create-form">
-      <input type="hidden" name="_action" value="create" />
-      <div class="input-group">
-        <label>Nom</label>
-        <input type="text" name="name" required placeholder="ex: Navigation principale" class="form-input" />
-      </div>
-      <button type="submit" class="btn btn-primary">
-        + Créer
-      </button>
-    </form>
+  <div class="header-row">
+    <button class="btn btn-primary" onclick="document.getElementById('modal-new').showModal()">
+      + Nouveau menu
+    </button>
   </div>
 
   {menus.length === 0 ? (
@@ -78,118 +71,59 @@ const menus = await system.menu.list()
       ))}
     </div>
   )}
+
+  <dialog id="modal-new" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>Nouveau menu</h2>
+        <button class="close-btn" onclick="document.getElementById('modal-new').close()">×</button>
+      </div>
+      <form method="POST">
+        <input type="hidden" name="_action" value="create" />
+        <div class="modal-body">
+          <div class="form-group">
+            <label>Nom</label>
+            <input type="text" name="name" required placeholder="ex: Navigation principale" class="form-input" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-new').close()">Annuler</button>
+          <button type="submit" class="btn btn-primary">Créer</button>
+        </div>
+      </form>
+    </div>
+  </dialog>
 </Layout>
 
 <style>
-  .page-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
-  }
-  .page-header h1 {
-    font-size: 24px;
-    font-weight: 600;
-    color: var(--text);
-  }
-  .badge {
-    font-size: 13px;
-    color: var(--text-light);
-    background: var(--surface-elevated);
-    padding: 6px 12px;
-    border-radius: 20px;
-  }
-  .create-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 16px;
-    padding: 24px;
-    margin-bottom: 24px;
-    box-shadow: var(--shadow);
-  }
-  .card-title {
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text);
-    margin-bottom: 16px;
-  }
-  .create-form {
-    display: flex;
-    gap: 12px;
-    align-items: flex-end;
-  }
-  .input-group {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .input-group label {
-    font-size: 12px;
-    color: var(--text-light);
-  }
-  .form-input {
-    width: 100%;
-    padding: 12px 14px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    font-size: 14px;
-    transition: all 0.2s;
-  }
-  .form-input:focus {
-    outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15);
-  }
-  .menu-list {
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
-  }
-  .menu-card {
-    background: var(--surface);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px 24px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    box-shadow: var(--shadow);
-    transition: all 0.2s;
-  }
-  .menu-card:hover {
-    border-color: var(--primary);
-    box-shadow: 0 4px 12px rgb(99 102 241 / 0.1);
-  }
+  .page-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; }
+  .page-header h1 { font-size: 24px; font-weight: 600; color: var(--text); }
+  .badge { font-size: 13px; color: var(--text-light); background: var(--surface-elevated); padding: 6px 12px; border-radius: 20px; }
+  .header-row { margin-bottom: 20px; display: flex; justify-content: flex-end; }
+  .menu-list { display: flex; flex-direction: column; gap: 12px; }
+  .menu-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 20px 24px; display: flex; align-items: center; justify-content: space-between; box-shadow: var(--shadow); transition: all 0.2s; }
+  .menu-card:hover { border-color: var(--primary); box-shadow: 0 4px 12px rgb(99 102 241 / 0.1); }
   .menu-info { display: flex; align-items: center; gap: 12px; }
-  .menu-name {
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--text);
-  }
-  .menu-slug {
-    font-size: 13px;
-    color: var(--text-light);
-    font-family: monospace;
-    background: var(--surface-elevated);
-    padding: 4px 8px;
-    border-radius: 6px;
-  }
-  .menu-actions {
-    display: flex;
-    gap: 10px;
-    align-items: center;
-  }
-  .empty-state {
-    text-align: center;
-    padding: 60px;
-    color: var(--text-light);
-    background: var(--surface);
-    border-radius: 16px;
-  }
+  .menu-name { font-size: 16px; font-weight: 500; color: var(--text); }
+  .menu-slug { font-size: 13px; color: var(--text-light); font-family: monospace; background: var(--surface-elevated); padding: 4px 8px; border-radius: 6px; }
+  .menu-actions { display: flex; gap: 10px; align-items: center; }
+  .empty-state { text-align: center; padding: 60px; color: var(--text-light); background: var(--surface); border-radius: 16px; }
+
+  .modal { border: none; border-radius: 20px; padding: 0; background: transparent; max-width: 420px; width: 90%; box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25); }
+  .modal::backdrop { background: rgb(0 0 0 / 0.5); backdrop-filter: blur(4px); }
+  .modal-content { background: var(--surface); border-radius: 20px; overflow: hidden; }
+  .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .modal-header h2 { font-size: 18px; font-weight: 600; color: var(--text); }
+  .close-btn { background: none; border: none; font-size: 28px; color: var(--text-light); cursor: pointer; line-height: 1; padding: 0; }
+  .close-btn:hover { color: var(--text); }
+  .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 10px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .form-input { padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; transition: all 0.2s; }
+  .form-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15); }
 
   @media (max-width: 640px) {
-    .create-form { flex-direction: column; }
     .menu-card { flex-direction: column; gap: 16px; align-items: flex-start; }
     .menu-actions { width: 100%; justify-content: space-between; }
   }
