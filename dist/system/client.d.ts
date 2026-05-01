@@ -1,4 +1,12 @@
 import type { Menu, MenuItem, MenuWithItems, Tag, Category, Section, SectionType, Widget, Comment, CommentStatus, MediaEntry, Form, FormField, FormFieldType, FormSubmission, ContentType, ContentTypeField, ContentTypeFieldType, Entry } from './types.js';
+type StateManager = {
+    getOrFetch<T>(key: string, fetcher: () => Promise<T>, options?: {
+        ttlSeconds?: number;
+        useCache?: boolean;
+    }): Promise<T>;
+    invalidate(key: string): Promise<void>;
+    invalidatePattern(prefix: string): Promise<void>;
+};
 declare function menuClient(db: D1Database): {
     list(): Promise<Menu[]>;
     get(slug: string): Promise<MenuWithItems | null>;
@@ -133,5 +141,9 @@ export interface SystemClient {
     entries: ReturnType<typeof entriesClient>;
 }
 export declare function createSystemClient(db: D1Database): SystemClient;
+export interface CachedSystemClient extends SystemClient {
+    state: StateManager;
+}
+export declare function createCachedSystemClient(db: D1Database, kv: KVNamespace): CachedSystemClient;
 export {};
 //# sourceMappingURL=client.d.ts.map

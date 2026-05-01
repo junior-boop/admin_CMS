@@ -4,6 +4,10 @@ import type { FindOptions } from '../runtime/collections.js'
 
 type AnyCMSClient<T extends CMSConfig> = CMSClient<T> | CachedCMSClient<T>
 
+function asCached<T extends CMSConfig>(cms: AnyCMSClient<T>): CachedCMSClient<T> {
+  return cms as unknown as CachedCMSClient<T>
+}
+
 export async function getCollection<
   T extends CMSConfig,
   K extends keyof T['collections'] & string,
@@ -43,7 +47,7 @@ export async function createEntry<
   const result = await client.create(data)
 
   if ('state' in cms) {
-    await cms.state.invalidateCollection(collection)
+    await asCached(cms).state.invalidateCollection(collection)
   }
 
   return result
@@ -63,8 +67,8 @@ export async function updateEntry<
   const result = await client.update(id, data)
 
   if ('state' in cms) {
-    await cms.state.invalidate(`cms:${collection}:${id}`)
-    await cms.state.invalidateCollection(collection)
+    await asCached(cms).state.invalidate(`cms:${collection}:${id}`)
+    await asCached(cms).state.invalidateCollection(collection)
   }
 
   return result
@@ -83,8 +87,8 @@ export async function deleteEntry<
   await client.delete(id)
 
   if ('state' in cms) {
-    await cms.state.invalidate(`cms:${collection}:${id}`)
-    await cms.state.invalidateCollection(collection)
+    await asCached(cms).state.invalidate(`cms:${collection}:${id}`)
+    await asCached(cms).state.invalidateCollection(collection)
   }
 }
 

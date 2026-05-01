@@ -374,4 +374,321 @@ export function createSystemClient(db) {
         entries: entriesClient(db),
     };
 }
+// ─── Cached clients ───────────────────────────────────────────────────────────────
+function cachedMenuClient(db, state) {
+    const base = menuClient(db);
+    return {
+        async list() {
+            return state.getOrFetch('cms:menu:list', () => base.list(), { ttlSeconds: 120 });
+        },
+        async get(slug) {
+            return state.getOrFetch(`cms:menu:${slug}`, () => base.get(slug), { ttlSeconds: 120 });
+        },
+        async create(data) {
+            const result = await base.create(data);
+            await state.invalidatePattern('cms:menu:');
+            return result;
+        },
+        async addItem(menuId, item) {
+            const result = await base.addItem(menuId, item);
+            const menu = await db.prepare('SELECT slug FROM cms_menus WHERE id = ?').bind(menuId).first();
+            if (menu)
+                await state.invalidate(`cms:menu:${menu.slug}`);
+            return result;
+        },
+        async deleteItem(itemId) {
+            const item = await db.prepare('SELECT m.slug FROM cms_menu_items mi JOIN cms_menus m ON mi.menu_id = m.id WHERE mi.id = ?').bind(itemId).first();
+            await base.deleteItem(itemId);
+            if (item)
+                await state.invalidate(`cms:menu:${item.slug}`);
+        },
+        async delete(menuId) {
+            await base.delete(menuId);
+            await state.invalidatePattern('cms:menu:');
+        },
+    };
+}
+function cachedTagsClient(db, state) {
+    const base = tagsClient(db);
+    return {
+        async list() {
+            return state.getOrFetch('cms:tags:list', () => base.list(), { ttlSeconds: 180 });
+        },
+        async create(data) {
+            const result = await base.create(data);
+            await state.invalidate('cms:tags:list');
+            return result;
+        },
+        async delete(id) {
+            await base.delete(id);
+            await state.invalidate('cms:tags:list');
+        },
+    };
+}
+function cachedCategoriesClient(db, state) {
+    const base = categoriesClient(db);
+    return {
+        async list() {
+            return state.getOrFetch('cms:categories:list', () => base.list(), { ttlSeconds: 180 });
+        },
+        async create(data) {
+            const result = await base.create(data);
+            await state.invalidate('cms:categories:list');
+            return result;
+        },
+        async delete(id) {
+            await base.delete(id);
+            await state.invalidate('cms:categories:list');
+        },
+    };
+}
+function cachedSectionsClient(db, state) {
+    const base = sectionsClient(db);
+    return {
+        async listByPage(page) {
+            return state.getOrFetch(`cms:sections:${page}`, () => base.listByPage(page), { ttlSeconds: 120 });
+        },
+        async create(data) {
+            const result = await base.create(data);
+            await state.invalidate(`cms:sections:${data.page}`);
+            return result;
+        },
+        async update(id, data) {
+            const section = await db.prepare('SELECT page FROM cms_sections WHERE id = ?').bind(id).first();
+            const result = await base.update(id, data);
+            if (section)
+                await state.invalidate(`cms:sections:${section.page}`);
+            return result;
+        },
+        async delete(id) {
+            const section = await db.prepare('SELECT page FROM cms_sections WHERE id = ?').bind(id).first();
+            await base.delete(id);
+            if (section)
+                await state.invalidate(`cms:sections:${section.page}`);
+        },
+    };
+}
+function cachedFormsClient(db, state) {
+    const base = formsClient(db);
+    return {
+        async list() {
+            return state.getOrFetch('cms:forms:list', () => base.list(), { ttlSeconds: 180 });
+        },
+        async get(id) {
+            return state.getOrFetch(`cms:forms:${id}`, () => base.get(id));
+        },
+        async create(data) {
+            const result = await base.create(data);
+            await state.invalidate('cms:forms:list');
+            return result;
+        },
+        async delete(id) {
+            await base.delete(id);
+            await state.invalidate('cms:forms:list');
+            await state.invalidatePattern('cms:forms:');
+        },
+        async listFields(formId) {
+            return state.getOrFetch(`cms:forms:${formId}:fields`, () => base.listFields(formId));
+        },
+        async addField(formId, data) {
+            const result = await base.addField(formId, data);
+            await state.invalidate(`cms:forms:${formId}:fields`);
+            return result;
+        },
+        async deleteField(fieldId) {
+            const field = await db.prepare('SELECT form_id FROM cms_form_fields WHERE id = ?').bind(fieldId).first();
+            await base.deleteField(fieldId);
+            if (field)
+                await state.invalidate(`cms:forms:${field.form_id}:fields`);
+        },
+        async listSubmissions(formId) {
+            return state.getOrFetch(`cms:forms:${formId}:submissions`, () => base.listSubmissions(formId), { ttlSeconds: 30 });
+        },
+    };
+}
+function cachedContentTypesClient(db, state) {
+    const base = contentTypesClient(db);
+    return {
+        async list() {
+            return state.getOrFetch('cms:contentTypes:list', () => base.list(), { ttlSeconds: 300 });
+        },
+        async get(id) {
+            return state.getOrFetch(`cms:contentTypes:${id}`, () => base.get(id));
+        },
+        async getBySlug(slug) {
+            return state.getOrFetch(`cms:contentTypes:slug:${slug}`, () => base.getBySlug(slug), { ttlSeconds: 300 });
+        },
+        async create(data) {
+            const result = await base.create(data);
+            await state.invalidate('cms:contentTypes:list');
+            return result;
+        },
+        async delete(id) {
+            await base.delete(id);
+            await state.invalidate('cms:contentTypes:list');
+            await state.invalidatePattern('cms:contentTypes:');
+        },
+        async listFields(contentTypeId) {
+            return state.getOrFetch(`cms:contentTypes:${contentTypeId}:fields`, () => base.listFields(contentTypeId));
+        },
+        async addField(contentTypeId, data) {
+            const result = await base.addField(contentTypeId, data);
+            await state.invalidate(`cms:contentTypes:${contentTypeId}:fields`);
+            return result;
+        },
+        async deleteField(fieldId) {
+            const field = await db.prepare('SELECT content_type_id FROM cms_content_type_fields WHERE id = ?').bind(fieldId).first();
+            await base.deleteField(fieldId);
+            if (field)
+                await state.invalidate(`cms:contentTypes:${field.content_type_id}:fields`);
+        },
+    };
+}
+function cachedEntriesClient(db, state) {
+    const base = entriesClient(db);
+    return {
+        async list(contentTypeId, options = {}) {
+            const key = `cms:entries:${contentTypeId}:${options.status || 'all'}`;
+            return state.getOrFetch(key, () => base.list(contentTypeId, options), { ttlSeconds: 60 });
+        },
+        async get(id) {
+            return state.getOrFetch(`cms:entries:${id}`, () => base.get(id), { ttlSeconds: 30 });
+        },
+        async create(contentTypeId, data, status = 'draft') {
+            const result = await base.create(contentTypeId, data, status);
+            await state.invalidate(`cms:entries:${contentTypeId}:all`);
+            return result;
+        },
+        async update(id, data, status) {
+            const entry = await base.get(id);
+            const result = await base.update(id, data, status);
+            if (entry) {
+                await state.invalidate(`cms:entries:${id}`);
+                await state.invalidate(`cms:entries:${entry.content_type_id}:all`);
+            }
+            return result;
+        },
+        async delete(id) {
+            const entry = await base.get(id);
+            await base.delete(id);
+            if (entry) {
+                await state.invalidate(`cms:entries:${id}`);
+                await state.invalidate(`cms:entries:${entry.content_type_id}:all`);
+            }
+        },
+    };
+}
+function cachedMediaDbClient(db, state) {
+    const base = mediaDbClient(db);
+    return {
+        async list(limit = 50, offset = 0) {
+            return state.getOrFetch(`cms:media:list:${limit}:${offset}`, () => base.list(limit, offset), { ttlSeconds: 60 });
+        },
+        async create(data) {
+            const result = await base.create(data);
+            await state.invalidatePattern('cms:media:');
+            return result;
+        },
+        async delete(id) {
+            await base.delete(id);
+            await state.invalidatePattern('cms:media:');
+        },
+    };
+}
+function cachedCommentsClient(db, state) {
+    const base = commentsClient(db);
+    return {
+        async list(options = {}) {
+            const key = `cms:comments:${options.collection || 'all'}:${options.status || 'all'}`;
+            return state.getOrFetch(key, () => base.list(options), { ttlSeconds: 30 });
+        },
+        async create(data) {
+            const result = await base.create(data);
+            await state.invalidatePattern('cms:comments:');
+            return result;
+        },
+        async updateStatus(id, status) {
+            const result = await base.updateStatus(id, status);
+            await state.invalidatePattern('cms:comments:');
+            return result;
+        },
+        async delete(id) {
+            await base.delete(id);
+            await state.invalidatePattern('cms:comments:');
+        },
+    };
+}
+function cachedWidgetsClient(db, state) {
+    const base = widgetsClient(db);
+    return {
+        async listByArea(area) {
+            return state.getOrFetch(`cms:widgets:${area}`, () => base.listByArea(area), { ttlSeconds: 120 });
+        },
+        async create(data) {
+            const result = await base.create(data);
+            await state.invalidate(`cms:widgets:${data.area}`);
+            return result;
+        },
+        async delete(id) {
+            const widget = await db.prepare('SELECT area FROM cms_widgets WHERE id = ?').bind(id).first();
+            await base.delete(id);
+            if (widget)
+                await state.invalidate(`cms:widgets:${widget.area}`);
+        },
+    };
+}
+export function createCachedSystemClient(db, kv) {
+    const memoryCache = new Map();
+    const state = {
+        async getOrFetch(key, fetcher, options = {}) {
+            const { ttlSeconds = 60, useCache = true } = options;
+            if (useCache) {
+                const memEntry = memoryCache.get(key);
+                if (memEntry && Date.now() - memEntry.timestamp < memEntry.ttl * 1000) {
+                    return memEntry.data;
+                }
+                try {
+                    const kvVal = await kv.get(key, 'text');
+                    if (kvVal) {
+                        const data = JSON.parse(kvVal);
+                        memoryCache.set(key, { data, timestamp: Date.now(), ttl: ttlSeconds });
+                        return data;
+                    }
+                }
+                catch { }
+            }
+            const data = await fetcher();
+            if (useCache) {
+                memoryCache.set(key, { data, timestamp: Date.now(), ttl: ttlSeconds });
+                await kv.put(key, JSON.stringify(data), { expirationTtl: ttlSeconds });
+            }
+            return data;
+        },
+        async invalidate(key) {
+            memoryCache.delete(key);
+            await kv.delete(key);
+        },
+        async invalidatePattern(prefix) {
+            for (const k of memoryCache.keys()) {
+                if (k.startsWith(prefix))
+                    memoryCache.delete(k);
+            }
+            const list = await kv.list({ prefix });
+            await Promise.all(list.keys.map(k => kv.delete(k.name)));
+        },
+    };
+    return {
+        state,
+        menu: cachedMenuClient(db, state),
+        tags: cachedTagsClient(db, state),
+        categories: cachedCategoriesClient(db, state),
+        sections: cachedSectionsClient(db, state),
+        widgets: cachedWidgetsClient(db, state),
+        comments: cachedCommentsClient(db, state),
+        mediaDb: cachedMediaDbClient(db, state),
+        forms: cachedFormsClient(db, state),
+        contentTypes: cachedContentTypesClient(db, state),
+        entries: cachedEntriesClient(db, state),
+    };
+}
 //# sourceMappingURL=client.js.map

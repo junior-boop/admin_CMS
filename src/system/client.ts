@@ -730,8 +730,8 @@ export function createCachedSystemClient(db: D1Database, kv: KVNamespace): Cache
   const memoryCache = new Map<string, { data: unknown; timestamp: number; ttl: number }>()
 
   const state: StateManager = {
-    async getOrFetch<T>(key: string, fetcher: () => Promise<T>, options = {}): Promise<T> {
-      const { ttlSeconds = 60, useCache = true } = options
+    async getOrFetch<T>(key: string, fetcher: () => Promise<T>, options?: { ttlSeconds?: number; useCache?: boolean }): Promise<T> {
+      const { ttlSeconds = 60, useCache = true } = options ?? {}
       if (useCache) {
         const memEntry = memoryCache.get(key)
         if (memEntry && Date.now() - memEntry.timestamp < memEntry.ttl * 1000) {

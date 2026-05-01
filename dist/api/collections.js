@@ -14,18 +14,36 @@ export async function createEntry(cms, collection, data) {
     const client = cms[collection];
     if (!client)
         throw new Error(`Collection "${collection}" not found in CMS config`);
-    return client.create(data);
+    const result = await client.create(data);
+    if ('state' in cms) {
+        await cms.state.invalidateCollection(collection);
+    }
+    return result;
 }
 export async function updateEntry(cms, collection, id, data) {
     const client = cms[collection];
     if (!client)
         throw new Error(`Collection "${collection}" not found in CMS config`);
-    return client.update(id, data);
+    const result = await client.update(id, data);
+    if ('state' in cms) {
+        await cms.state.invalidate(`cms:${collection}:${id}`);
+        await cms.state.invalidateCollection(collection);
+    }
+    return result;
 }
 export async function deleteEntry(cms, collection, id) {
     const client = cms[collection];
     if (!client)
         throw new Error(`Collection "${collection}" not found in CMS config`);
-    return client.delete(id);
+    await client.delete(id);
+    if ('state' in cms) {
+        await cms.state.invalidate(`cms:${collection}:${id}`);
+        await cms.state.invalidateCollection(collection);
+    }
+}
+export async function invalidateCollectionCache(cms, collection) {
+    if ('state' in cms) {
+        await cms.state.invalidateCollection(collection);
+    }
 }
 //# sourceMappingURL=collections.js.map
