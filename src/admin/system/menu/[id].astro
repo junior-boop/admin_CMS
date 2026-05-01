@@ -46,113 +46,105 @@ const menuItems = items.results
 ---
 
 <Layout config={config} title={`Menu: ${menuData.name}`} activeSystem="menu">
-  <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px">
-    <a href="/admin/system/menu" style="color:#6b7280; font-size:13px; text-decoration:none">← Menus</a>
-    <h1 style="font-size:20px; font-weight:600">{menuData.name}</h1>
-    <span style="font-size:12px; color:#9ca3af; font-family:monospace">/{menuData.slug}</span>
+  <div class="page-header">
+    <a href="/admin/system/menu" class="back-link">← Menus</a>
+    <div class="title-group">
+      <h1>{menuData.name}</h1>
+      <span class="slug">/{menuData.slug}</span>
+    </div>
   </div>
 
-  <!-- Add item form -->
-  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:24px">
-    <p style="font-size:13px; font-weight:500; color:#374151; margin-bottom:12px">Ajouter un item</p>
-    <form method="POST" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px">
+  <div class="form-card">
+    <p class="card-title">Ajouter un item</p>
+    <form method="POST" class="add-form">
       <input type="hidden" name="_action" value="addItem" />
 
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Label *</label>
-        <input type="text" name="label" required placeholder="ex: Accueil"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      <div class="form-row">
+        <div class="form-group">
+          <label>Label *</label>
+          <input type="text" name="label" required placeholder="ex: Accueil" class="form-input" />
+        </div>
+
+        <div class="form-group">
+          <label>URL *</label>
+          <input type="text" name="url" required placeholder="ex: /about" class="form-input" />
+        </div>
+
+        <div class="form-group">
+          <label>Ouverture</label>
+          <select name="target" class="form-select">
+            <option value="_self">Même onglet</option>
+            <option value="_blank">Nouvel onglet</option>
+          </select>
+        </div>
       </div>
 
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">URL *</label>
-        <input type="text" name="url" required placeholder="ex: /about"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+      <div class="form-row">
+        <div class="form-group">
+          <label>Parent</label>
+          <select name="parent_id" class="form-select">
+            <option value="">— Aucun —</option>
+            {menuItems.map((item) => (
+              <option value={String(item.id)}>{item.label}</option>
+            ))}
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label>Class CSS</label>
+          <input type="text" name="class_name" placeholder="ex: btn-primary" class="form-input mono" />
+        </div>
+
+        <div class="form-group small">
+          <label>Ordre</label>
+          <input type="number" name="order" value="0" min="0" class="form-input" />
+        </div>
       </div>
 
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Ouverture</label>
-        <select name="target"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; background:#fff">
-          <option value="_self">Même onglet</option>
-          <option value="_blank">Nouvel onglet</option>
-        </select>
-      </div>
-
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Parent</label>
-        <select name="parent_id"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; background:#fff">
-          <option value="">— Aucun —</option>
-          {menuItems.map((item) => (
-            <option value={String(item.id)}>{item.label}</option>
-          ))}
-        </select>
-      </div>
-
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Class CSS</label>
-        <input type="text" name="class_name" placeholder="ex: btn-primary active"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:monospace" />
-      </div>
-
-      <div>
-        <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Ordre</label>
-        <input type="number" name="order" value="0" min="0"
-          style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
-      </div>
-
-      <div style="display:flex; align-items:flex-end">
-        <button type="submit"
-          style="width:100%; padding:8px 16px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer">
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
           + Ajouter
         </button>
       </div>
     </form>
   </div>
 
-  <!-- Items list -->
   {menuItems.length === 0 ? (
-    <div style="text-align:center; padding:60px; color:#9ca3af">
-      <p style="font-size:16px">Aucun item dans ce menu.</p>
+    <div class="empty-state">
+      <p>Aucun item dans ce menu.</p>
     </div>
   ) : (
-    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
-      <table style="width:100%; border-collapse:collapse; font-size:14px">
+    <div class="table-card">
+      <table>
         <thead>
-          <tr style="background:#f9fafb; border-bottom:1px solid #e5e7eb">
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Label</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">URL</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Class CSS</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Cible</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Ordre</th>
-            <th style="padding:10px 16px; text-align:right; font-weight:500; color:#6b7280">Actions</th>
+          <tr>
+            <th>Label</th>
+            <th>URL</th>
+            <th>Class CSS</th>
+            <th>Cible</th>
+            <th>Ordre</th>
+            <th></th>
           </tr>
         </thead>
         <tbody>
           {menuItems.map((item) => {
             const parent = menuItems.find(i => i.id === item.parent_id)
             return (
-              <tr style="border-bottom:1px solid #f3f4f6">
-                <td style="padding:10px 16px; font-weight:500">
-                  {item.parent_id && <span style="color:#d1d5db; margin-right:6px">└</span>}
+              <tr>
+                <td class="label-cell">
+                  {item.parent_id && <span class="indent">└</span>}
                   {item.label}
-                  {parent && <span style="font-size:12px; color:#9ca3af; font-weight:400; margin-left:6px">({parent.label})</span>}
+                  {parent && <span class="parent-tag">({parent.label})</span>}
                 </td>
-                <td style="padding:10px 16px; color:#6b7280; font-size:13px; font-family:monospace">{item.url}</td>
-                <td style="padding:10px 16px; font-size:12px; font-family:monospace; color:#6b7280">
-                  {item.class_name ?? <span style="color:#d1d5db">—</span>}
-                </td>
-                <td style="padding:10px 16px; color:#6b7280; font-size:13px">{item.target}</td>
-                <td style="padding:10px 16px; color:#9ca3af; font-size:13px">{item.order_index}</td>
-                <td style="padding:10px 16px; text-align:right">
-                  <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer cet item ?')">
+                <td class="mono">{item.url}</td>
+                <td class="mono muted">{item.class_name ?? '—'}</td>
+                <td>{item.target === '_blank' ? '↗' : '↗'}</td>
+                <td class="muted">{item.order_index}</td>
+                <td class="actions">
+                  <form method="POST" onsubmit="return confirm('Supprimer cet item ?')">
                     <input type="hidden" name="_action" value="deleteItem" />
                     <input type="hidden" name="item_id" value={String(item.id)} />
-                    <button type="submit"
-                      style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
-                      Supprimer
-                    </button>
+                    <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
                   </form>
                 </td>
               </tr>
@@ -163,3 +155,136 @@ const menuItems = items.results
     </div>
   )}
 </Layout>
+
+<style>
+  .page-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .back-link {
+    color: var(--text-light);
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .back-link:hover { color: var(--primary); }
+  .title-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .title-group h1 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .slug {
+    font-size: 13px;
+    color: var(--text-light);
+    font-family: monospace;
+    background: var(--surface-elevated);
+    padding: 4px 8px;
+    border-radius: 6px;
+  }
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+    box-shadow: var(--shadow);
+  }
+  .card-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    margin-bottom: 20px;
+  }
+  .add-form { display: flex; flex-direction: column; gap: 16px; }
+  .form-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 768px) { .form-row { grid-template-columns: 1fr; } }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-group.small { max-width: 100px; }
+  .form-group label {
+    font-size: 12px;
+    color: var(--text-light);
+  }
+  .form-input, .form-select {
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.2s;
+  }
+  .form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15);
+  }
+  .mono { font-family: monospace; }
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 8px;
+  }
+  .table-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    box-shadow: var(--shadow);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
+  th {
+    padding: 14px 20px;
+    text-align: left;
+    font-weight: 500;
+    color: var(--text-light);
+    background: var(--surface-elevated);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  td {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover { background: var(--surface-elevated); }
+  .label-cell { font-weight: 500; }
+  .indent { color: var(--text-light); margin-right: 8px; }
+  .parent-tag {
+    font-size: 12px;
+    color: var(--text-light);
+    font-weight: 400;
+    margin-left: 8px;
+  }
+  .muted { color: var(--text-light); }
+  .actions { text-align: right; white-space: nowrap; }
+  .empty-state {
+    text-align: center;
+    padding: 60px;
+    color: var(--text-light);
+    background: var(--surface);
+    border-radius: 16px;
+  }
+  .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+  @media (max-width: 768px) {
+    .table-card { overflow-x: auto; }
+    table { min-width: 600px; }
+  }
+</style>

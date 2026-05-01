@@ -97,13 +97,13 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
 ---
 
 <Layout config={config} title={pageTitle} activeCollection={collection} db={db}>
-  <div style="max-width:720px">
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:28px">
-      <a href={`/admin/${collection}`} style="color:#6b7280; font-size:13px; text-decoration:none">← {label}</a>
-      <h1 style="font-size:20px; font-weight:600">{pageTitle}</h1>
+  <div class="form-container">
+    <div class="form-header">
+      <a href={`/admin/${collection}`} class="back-link">← {label}</a>
+      <h1>{pageTitle}</h1>
     </div>
 
-    <form method="POST" id="entry-form" style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:24px; display:flex; flex-direction:column; gap:20px">
+    <form method="POST" id="entry-form" class="form-card">
 
       {/* ── Static collection fields ── */}
       {isStatic && Object.entries(config.collections[collection]!.fields).map(([fieldName, field]) => {
@@ -111,9 +111,9 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
         const labelText = (field.label ?? fieldName).charAt(0).toUpperCase() + (field.label ?? fieldName).slice(1)
         const required = field.required
         return (
-          <div style="display:flex; flex-direction:column; gap:6px">
-            <label for={fieldName} style="font-size:13px; font-weight:500; color:#374151">
-              {labelText}{required && <span style="color:#ef4444"> *</span>}
+          <div class="form-group">
+            <label for={fieldName} class="form-label">
+              {labelText}{required && <span class="required"> *</span>}
             </label>
             {field.type === 'richtext' ? (
               <div>
@@ -121,22 +121,21 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
                 <div class="tiptap-wrap" data-name={fieldName} data-initial={value}></div>
               </div>
             ) : field.type === 'boolean' ? (
-              <input type="checkbox" id={fieldName} name={fieldName} checked={value === 'true'} style="width:16px; height:16px" />
+              <div class="checkbox-group">
+                <input type="checkbox" id={fieldName} name={fieldName} checked={value === 'true'} class="checkbox" />
+                <label for={fieldName} class="checkbox-label">{labelText}</label>
+              </div>
             ) : field.type === 'select' ? (
-              <select id={fieldName} name={fieldName} required={required}
-                style="padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; background:#fff">
+              <select id={fieldName} name={fieldName} required={required} class="form-select">
                 <option value="">— Choisir —</option>
                 {field.options.map((opt: string) => <option value={opt} selected={value === opt}>{opt}</option>)}
               </select>
             ) : field.type === 'number' ? (
-              <input type="number" id={fieldName} name={fieldName} value={value} required={required}
-                style="padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+              <input type="number" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
             ) : field.type === 'date' ? (
-              <input type="date" id={fieldName} name={fieldName} value={value} required={required}
-                style="padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+              <input type="date" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
             ) : (
-              <input type="text" id={fieldName} name={fieldName} value={value} required={required}
-                style="padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+              <input type="text" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
             )}
           </div>
         )
@@ -144,9 +143,9 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
 
       {/* ── Dynamic collection fields ── */}
       {!isStatic && dynamicFields.length === 0 && (
-        <div style="text-align:center; padding:40px; color:#9ca3af">
+        <div class="empty-state">
           <p>Ce type n'a pas encore de champs.</p>
-          <a href={`/admin/system/content-types/${dynamicType!.id}`} style="color:#2563eb; font-size:14px">Définir les champs →</a>
+          <a href={`/admin/system/content-types/${dynamicType!.id}`} class="link">Définir les champs →</a>
         </div>
       )}
 
@@ -156,12 +155,11 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
         const ph = field.placeholder ?? undefined
         let parsedOptions: string[] = []
         try { parsedOptions = field.options ? JSON.parse(field.options) : [] } catch {}
-        const inputStyle = "padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; width:100%"
         return (
-          <div style="display:flex; flex-direction:column; gap:4px">
-            <label for={`f_${field.id}`} style="font-size:13px; font-weight:500; color:#374151">
-              {field.label}{required && <span style="color:#ef4444"> *</span>}
-              <span style="font-size:11px; color:#9ca3af; font-weight:400; margin-left:6px; font-family:monospace">{field.name}</span>
+          <div class="form-group">
+            <label for={`f_${field.id}`} class="form-label">
+              {field.label}{required && <span class="required"> *</span>}
+              <span class="field-name">{field.name}</span>
             </label>
 
             {field.type === 'richtext' ? (
@@ -174,40 +172,39 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
                 rows={4}
                 required={required}
                 placeholder={ph}
-                style={`${inputStyle}; resize:vertical; font-family:inherit`}>
+                class="form-textarea">
                 {value}
               </textarea>
             ) : field.type === 'boolean' ? (
-              <div style="display:flex; align-items:center; gap:8px; padding:6px 0">
+              <div class="checkbox-group">
                 <input type="checkbox" id={`f_${field.id}`} name={field.name}
-                  checked={value === 'true'} style="width:16px; height:16px; cursor:pointer" />
-                <label for={`f_${field.id}`} style="font-size:14px; color:#374151; cursor:pointer">{field.label}</label>
+                  checked={value === 'true'} class="checkbox" />
+                <label for={`f_${field.id}`} class="checkbox-label">{field.label}</label>
               </div>
             ) : field.type === 'select' ? (
-              <select id={`f_${field.id}`} name={field.name} required={required}
-                style={`${inputStyle}; background:#fff`}>
+              <select id={`f_${field.id}`} name={field.name} required={required} class="form-select">
                 <option value="">{ph ?? '— Choisir —'}</option>
                 {parsedOptions.map((opt) => <option value={opt} selected={value === opt}>{opt}</option>)}
               </select>
             ) : field.type === 'number' ? (
               <input type="number" id={`f_${field.id}`} name={field.name}
-                value={value} required={required} placeholder={ph} style={inputStyle} />
+                value={value} required={required} placeholder={ph} class="form-input" />
             ) : field.type === 'date' ? (
               <input type="date" id={`f_${field.id}`} name={field.name}
-                value={value} required={required} style={inputStyle} />
+                value={value} required={required} class="form-input" />
             ) : field.type === 'email' ? (
               <input type="email" id={`f_${field.id}`} name={field.name}
-                value={value} required={required} placeholder={ph ?? 'exemple@domaine.com'} style={inputStyle} />
+                value={value} required={required} placeholder={ph ?? 'exemple@domaine.com'} class="form-input" />
             ) : field.type === 'url' ? (
               <input type="url" id={`f_${field.id}`} name={field.name}
-                value={value} required={required} placeholder={ph ?? 'https://'} style={inputStyle} />
+                value={value} required={required} placeholder={ph ?? 'https://'} class="form-input" />
             ) : (
               <input type="text" id={`f_${field.id}`} name={field.name}
-                value={value} required={required} placeholder={ph} style={inputStyle} />
+                value={value} required={required} placeholder={ph} class="form-input" />
             )}
 
             {field.help_text && (
-              <p style="font-size:12px; color:#6b7280; margin-top:2px">{field.help_text}</p>
+              <p class="help-text">{field.help_text}</p>
             )}
           </div>
         )
@@ -215,28 +212,28 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
 
       {/* ── Status (dynamic only) ── */}
       {!isStatic && dynamicFields.length > 0 && (
-        <div style="display:flex; flex-direction:column; gap:6px; padding-top:4px; border-top:1px solid #f3f4f6">
-          <label style="font-size:13px; font-weight:500; color:#374151">Statut</label>
-          <div style="display:flex; gap:16px">
-            <label style="display:flex; align-items:center; gap:6px; font-size:14px; cursor:pointer">
-              <input type="radio" name="_status" value="draft" checked={dynamicEntryStatus === 'draft'} />
+        <div class="form-section">
+          <label class="form-label">Statut</label>
+          <div class="radio-group">
+            <label class="radio-label">
+              <input type="radio" name="_status" value="draft" checked={dynamicEntryStatus === 'draft'} class="radio" />
+              <span class="radio-custom"></span>
               Brouillon
             </label>
-            <label style="display:flex; align-items:center; gap:6px; font-size:14px; cursor:pointer">
-              <input type="radio" name="_status" value="published" checked={dynamicEntryStatus === 'published'} />
+            <label class="radio-label">
+              <input type="radio" name="_status" value="published" checked={dynamicEntryStatus === 'published'} class="radio" />
+              <span class="radio-custom"></span>
               Publié
             </label>
           </div>
         </div>
       )}
 
-      <div style="display:flex; justify-content:flex-end; gap:10px; padding-top:8px; border-top:1px solid #f3f4f6">
-        <a href={`/admin/${collection}`}
-           style="padding:8px 16px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; color:#374151; text-decoration:none">
+      <div class="form-actions">
+        <a href={`/admin/${collection}`} class="btn btn-secondary">
           Annuler
         </a>
-        <button type="submit"
-          style="padding:8px 20px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer">
+        <button type="submit" class="btn btn-primary">
           {isEdit ? 'Enregistrer' : 'Créer'}
         </button>
       </div>
@@ -246,6 +243,154 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
 </Layout>
 
 <style>
+  .form-container {
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .form-header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 28px;
+  }
+  .back-link {
+    color: var(--text-light);
+    font-size: 14px;
+    text-decoration: none;
+    transition: color 0.15s;
+  }
+  .back-link:hover {
+    color: var(--primary);
+  }
+  .form-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .form-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    box-shadow: var(--shadow-lg);
+  }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .form-label {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .required { color: var(--danger); }
+  .field-name {
+    font-size: 11px;
+    color: var(--text-light);
+    font-weight: 400;
+    font-family: monospace;
+    background: var(--surface-elevated);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  .form-input, .form-select, .form-textarea {
+    width: 100%;
+    padding: 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 14px;
+    color: var(--text);
+    background: var(--surface);
+    transition: all 0.2s ease;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15);
+  }
+  .form-textarea {
+    resize: vertical;
+    min-height: 120px;
+    font-family: inherit;
+  }
+  .help-text {
+    font-size: 12px;
+    color: var(--text-light);
+    margin-top: 4px;
+  }
+  .checkbox-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+  }
+  .checkbox {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--primary);
+    cursor: pointer;
+  }
+  .checkbox-label {
+    font-size: 14px;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .form-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .radio-group {
+    display: flex;
+    gap: 24px;
+  }
+  .radio-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+  .radio {
+    width: 18px;
+    height: 18px;
+    accent-color: var(--primary);
+  }
+  .form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--text-light);
+  }
+  .link {
+    color: var(--primary);
+    font-size: 14px;
+    text-decoration: none;
+  }
+  .link:hover { text-decoration: underline; }
+
+  @media (max-width: 640px) {
+    .form-card { padding: 20px; }
+    .form-header { flex-direction: column; align-items: flex-start; gap: 8px; }
+    .radio-group { flex-direction: column; gap: 12px; }
+  }
+
   .tiptap-toolbar {
     display: flex;
     flex-wrap: wrap;
@@ -427,5 +572,9 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
     })
   }
 
-  document.addEventListener('DOMContentLoaded', initEditors)
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initEditors)
+  } else {
+    initEditors()
+  }
 </script>
