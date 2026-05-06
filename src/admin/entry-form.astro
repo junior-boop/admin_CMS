@@ -1,248 +1,389 @@
 ---
-import Layout from './layout.astro'
-import { createCMSClient } from '@geniusofdigital/astro-cms'
-import { createCachedSystemClient } from '@geniusofdigital/astro-cms/system'
-import type { ContentType, ContentTypeField } from '@geniusofdigital/astro-cms/system'
-import { env as _cfEnv } from 'cloudflare:workers'
-import RichTextEditor from './components/RichTextEditor'
+import Layout from "./layout.astro";
+import { createCMSClient } from "@geniusofdigital/astro-cms";
+import { createCachedSystemClient } from "@geniusofdigital/astro-cms/system";
+import type {
+  ContentType,
+  ContentTypeField,
+} from "@geniusofdigital/astro-cms/system";
+import { env as _cfEnv } from "cloudflare:workers";
+import RichTextEditor from "./components/RichTextEditor";
 
-const config = (await import('virtual:astro-cms/config')).default
-const { collection, id } = Astro.params as { collection: string; id?: string }
+const config = (await import("virtual:astro-cms/config")).default;
+const { collection, id } = Astro.params as { collection: string; id?: string };
 
-const env = _cfEnv as Record<string, unknown>
-const db = env['DB'] as D1Database
-const kv = env['CACHE'] as KVNamespace
-const system = createCachedSystemClient(db, kv)
+const env = _cfEnv as Record<string, unknown>;
+const db = env["DB"] as D1Database;
+const kv = env["CACHE"] as KVNamespace;
+const system = createCachedSystemClient(db, kv);
 
-const isStatic = Boolean(config.collections[collection])
-let dynamicType: ContentType | null = null
-let dynamicFields: ContentTypeField[] = []
+const isStatic = Boolean(config.collections[collection]);
+let dynamicType: ContentType | null = null;
+let dynamicFields: ContentTypeField[] = [];
 
 if (!isStatic) {
-  dynamicType = await system.contentTypes.getBySlug(collection)
-  if (!dynamicType) return new Response('Collection introuvable', { status: 404 })
-  dynamicFields = await system.contentTypes.listFields(dynamicType.id)
+  dynamicType = await system.contentTypes.getBySlug(collection);
+  if (!dynamicType)
+    return new Response("Collection introuvable", { status: 404 });
+  dynamicFields = await system.contentTypes.listFields(dynamicType.id);
 }
 
-const isEdit = Boolean(id && id !== 'new')
-let staticEntry: Record<string, unknown> | null = null
-let dynamicEntryData: Record<string, unknown> = {}
-let dynamicEntryStatus: 'draft' | 'published' = 'draft'
+const isEdit = Boolean(id && id !== "new");
+let staticEntry: Record<string, unknown> | null = null;
+let dynamicEntryData: Record<string, unknown> = {};
+let dynamicEntryStatus: "draft" | "published" = "draft";
 
 if (isEdit && id) {
   if (isStatic) {
-    const cms = createCMSClient(config, { db })
-    staticEntry = await cms[collection]!.findOne(parseInt(id, 10)) as Record<string, unknown> | null
-    if (!staticEntry) return new Response('Entrée introuvable', { status: 404 })
+    const cms = createCMSClient(config, { db });
+    staticEntry = (await cms[collection]!.findOne(parseInt(id, 10))) as Record<
+      string,
+      unknown
+    > | null;
+    if (!staticEntry)
+      return new Response("Entrée introuvable", { status: 404 });
   } else {
-    const entry = await system.entries.get(parseInt(id, 10))
-    if (!entry) return new Response('Entrée introuvable', { status: 404 })
-    try { dynamicEntryData = JSON.parse(entry.data) } catch {}
-    dynamicEntryStatus = entry.status
+    const entry = await system.entries.get(parseInt(id, 10));
+    if (!entry) return new Response("Entrée introuvable", { status: 404 });
+    try {
+      dynamicEntryData = JSON.parse(entry.data);
+    } catch {}
+    dynamicEntryStatus = entry.status;
   }
 }
 
-if (Astro.request.method === 'POST') {
-  const form = await Astro.request.formData()
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
 
   try {
     if (isStatic) {
-      const cms = createCMSClient(config, { db })
-      const collectionDef = config.collections[collection]!
-      const data: Record<string, unknown> = {}
+      const cms = createCMSClient(config, { db });
+      const collectionDef = config.collections[collection]!;
+      const data: Record<string, unknown> = {};
       for (const [fieldName, field] of Object.entries(collectionDef.fields)) {
-        const raw = form.get(fieldName)
-        if (field.type === 'boolean') {
-          data[fieldName] = raw === 'on'
-        } else if (field.type === 'number') {
-          data[fieldName] = raw ? parseFloat(raw as string) : null
+        const raw = form.get(fieldName);
+        if (field.type === "boolean") {
+          data[fieldName] = raw === "on";
+        } else if (field.type === "number") {
+          data[fieldName] = raw ? parseFloat(raw as string) : null;
         } else {
-          data[fieldName] = raw ?? null
+          data[fieldName] = raw ?? null;
         }
       }
       if (isEdit && id) {
-        await cms[collection]!.update(parseInt(id, 10), data as any)
+        await cms[collection]!.update(parseInt(id, 10), data as any);
       } else {
-        await cms[collection]!.create(data as any)
+        await cms[collection]!.create(data as any);
       }
     } else {
-      const data: Record<string, unknown> = {}
+      const data: Record<string, unknown> = {};
       for (const field of dynamicFields) {
-        const raw = form.get(field.name)
-        if (field.type === 'boolean') {
-          data[field.name] = raw === 'on'
-        } else if (field.type === 'number') {
-          data[field.name] = raw ? parseFloat(raw as string) : null
+        const raw = form.get(field.name);
+        if (field.type === "boolean") {
+          data[field.name] = raw === "on";
+        } else if (field.type === "number") {
+          data[field.name] = raw ? parseFloat(raw as string) : null;
         } else {
-          data[field.name] = raw ?? null
+          data[field.name] = raw ?? null;
         }
       }
-      const status = (form.get('_status') as 'draft' | 'published') ?? 'draft'
+      const status = (form.get("_status") as "draft" | "published") ?? "draft";
       if (isEdit && id) {
-        await system.entries.update(parseInt(id, 10), data, status)
+        await system.entries.update(parseInt(id, 10), data, status);
       } else {
-        await system.entries.create(dynamicType!.id, data, status)
+        await system.entries.create(dynamicType!.id, data, status);
       }
     }
   } catch (e) {
-    console.error('Save entry failed:', e)
-    return new Response('Erreur lors de la sauvegarde', { status: 500 })
+    console.error("Save entry failed:", e);
+    return new Response("Erreur lors de la sauvegarde", { status: 500 });
   }
 
-  return Astro.redirect(`/admin/${collection}`)
+  return Astro.redirect(`/admin/${collection}`);
 }
+
+console.log("Dynamic fields:", dynamicFields);
 
 const label = isStatic
   ? collection.charAt(0).toUpperCase() + collection.slice(1)
-  : dynamicType!.name
-const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${label}`
+  : dynamicType!.name;
+const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${label}`;
 ---
 
 <Layout config={config} title={pageTitle} activeCollection={collection} db={db}>
-  <div class="form-container">
-    <div class="form-header">
-      <a href={`/admin/${collection}`} class="back-link">← {label}</a>
+  <div class='form-container'>
+    <div class='form-header'>
+      <a href={`/admin/${collection}`} class='back-link'>← {label}</a>
       <h1>{pageTitle}</h1>
     </div>
 
-    <form method="POST" id="entry-form" class="form-card">
-
+    <form method='POST' id='entry-form' class='form-card'>
       {/* ── Static collection fields ── */}
-      {isStatic && (
-        <div class="fields-grid">
-          {Object.entries(config.collections[collection]!.fields).map(([fieldName, field]) => {
-            const value = staticEntry ? String(staticEntry[fieldName] ?? '') : ''
-            const labelText = (field.label ?? fieldName).charAt(0).toUpperCase() + (field.label ?? fieldName).slice(1)
-            const required = field.required
-            return (
-              <div class="form-group" class:list={[{ 'full-width': field.type === 'richtext' }]}>
-                <label for={fieldName} class="form-label">
-                  {labelText}{required && <span class="required"> *</span>}
-                </label>
-                {field.type === 'richtext' ? (
-                  <RichTextEditor name={fieldName} client:only="react" initialValue={value} />
-                ) : field.type === 'boolean' ? (
-                  <div class="checkbox-group">
-                    <input type="checkbox" id={fieldName} name={fieldName} checked={value === 'true'} class="checkbox" />
-                    <label for={fieldName} class="checkbox-label">{labelText}</label>
+      {
+        isStatic && (
+          <div class='fields-grid'>
+            {Object.entries(config.collections[collection]!.fields).map(
+              ([fieldName, field]) => {
+                const value = staticEntry
+                  ? String(staticEntry[fieldName] ?? "")
+                  : "";
+                const labelText =
+                  (field.label ?? fieldName).charAt(0).toUpperCase() +
+                  (field.label ?? fieldName).slice(1);
+                const required = field.required;
+                return (
+                  <div
+                    class='form-group'
+                    class:list={[{ "full-width": field.type === "richtext" }]}>
+                    <label for={fieldName} class='form-label'>
+                      {labelText}
+                      {required && <span class='required'> *</span>}
+                    </label>
+                    {field.type === "richtext" ? (
+                      <RichTextEditor
+                        name={fieldName}
+                        client:only='react'
+                        initialValue={value}
+                      />
+                    ) : field.type === "boolean" ? (
+                      <div class='checkbox-group'>
+                        <input
+                          type='checkbox'
+                          id={fieldName}
+                          name={fieldName}
+                          checked={value === "true"}
+                          class='checkbox'
+                        />
+                        <label for={fieldName} class='checkbox-label'>
+                          {labelText}
+                        </label>
+                      </div>
+                    ) : field.type === "select" ? (
+                      <select
+                        id={fieldName}
+                        name={fieldName}
+                        required={required}
+                        class='form-select'>
+                        <option value=''>— Choisir —</option>
+                        {field.options.map((opt: string) => (
+                          <option value={opt} selected={value === opt}>
+                            {opt}
+                          </option>
+                        ))}
+                      </select>
+                    ) : field.type === "number" ? (
+                      <input
+                        type='number'
+                        id={fieldName}
+                        name={fieldName}
+                        value={value}
+                        required={required}
+                        class='form-input'
+                      />
+                    ) : field.type === "date" ? (
+                      <input
+                        type='date'
+                        id={fieldName}
+                        name={fieldName}
+                        value={value}
+                        required={required}
+                        class='form-input'
+                      />
+                    ) : (
+                      <input
+                        type='text'
+                        id={fieldName}
+                        name={fieldName}
+                        value={value}
+                        required={required}
+                        class='form-input'
+                      />
+                    )}
                   </div>
-                ) : field.type === 'select' ? (
-                  <select id={fieldName} name={fieldName} required={required} class="form-select">
-                    <option value="">— Choisir —</option>
-                    {field.options.map((opt: string) => <option value={opt} selected={value === opt}>{opt}</option>)}
-                  </select>
-                ) : field.type === 'number' ? (
-                  <input type="number" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
-                ) : field.type === 'date' ? (
-                  <input type="date" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
-                ) : (
-                  <input type="text" id={fieldName} name={fieldName} value={value} required={required} class="form-input" />
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
+                );
+              },
+            )}
+          </div>
+        )
+      }
 
       {/* ── Dynamic collection fields ── */}
-      {!isStatic && dynamicFields.length === 0 && (
-        <div class="empty-state">
-          <p>Ce type n'a pas encore de champs.</p>
-          <a href={`/admin/system/content-types/${dynamicType!.id}`} class="link">Définir les champs →</a>
-        </div>
-      )}
+      {
+        !isStatic && dynamicFields.length === 0 && (
+          <div class='empty-state'>
+            <p>Ce type n'a pas encore de champs.</p>
+            <a
+              href={`/admin/system/content-types/${dynamicType!.id}`}
+              class='link'>
+              Définir les champs →
+            </a>
+          </div>
+        )
+      }
 
-      {!isStatic && dynamicFields.length > 0 && (
-        <div class="fields-grid">
-          {dynamicFields.map((field) => {
-            const value = String(dynamicEntryData[field.name] ?? '')
-            const required = Boolean(field.required)
-            const ph = field.placeholder ?? undefined
-            let parsedOptions: string[] = []
-            try { parsedOptions = field.options ? JSON.parse(field.options) : [] } catch {}
-            const isWide = field.type === 'richtext' || field.type === 'textarea'
-            return (
-              <div class="form-group" class:list={[{ 'full-width': isWide }]}>
-                <label for={`f_${field.id}`} class="form-label">
-                  {field.label}{required && <span class="required"> *</span>}
-                  <span class="field-name">{field.name}</span>
-                </label>
+      {
+        !isStatic && dynamicFields.length > 0 && (
+          <div class='fields-grid'>
+            {dynamicFields.map((field) => {
+              const value = String(dynamicEntryData[field.name] ?? "");
+              const required = Boolean(field.required);
+              const ph = field.placeholder ?? undefined;
+              let parsedOptions: string[] = [];
+              try {
+                parsedOptions = field.options ? JSON.parse(field.options) : [];
+              } catch {}
+              const isWide =
+                field.type === "richtext" || field.type === "textarea";
+              return (
+                <div class='form-group' class:list={[{ "full-width": isWide }]}>
+                  <label for={`f_${field.id}`} class='form-label'>
+                    {field.label}
+                    {required && <span class='required'> *</span>}
+                    <span class='field-name'>{field.name}</span>
+                  </label>
 
-                {field.type === 'richtext' ? (
-                  <RichTextEditor name={field.name} client:only="react" initialValue={value} />
-                ) : field.type === 'textarea' ? (
-                  <textarea id={`f_${field.id}`} name={field.name}
-                    rows={4}
-                    required={required}
-                    placeholder={ph}
-                    class="form-textarea">
-                    {value}
-                  </textarea>
-                ) : field.type === 'boolean' ? (
-                  <div class="checkbox-group">
-                    <input type="checkbox" id={`f_${field.id}`} name={field.name}
-                      checked={value === 'true'} class="checkbox" />
-                    <label for={`f_${field.id}`} class="checkbox-label">{field.label}</label>
-                  </div>
-                ) : field.type === 'select' ? (
-                  <select id={`f_${field.id}`} name={field.name} required={required} class="form-select">
-                    <option value="">{ph ?? '— Choisir —'}</option>
-                    {parsedOptions.map((opt) => <option value={opt} selected={value === opt}>{opt}</option>)}
-                  </select>
-                ) : field.type === 'number' ? (
-                  <input type="number" id={`f_${field.id}`} name={field.name}
-                    value={value} required={required} placeholder={ph} class="form-input" />
-                ) : field.type === 'date' ? (
-                  <input type="date" id={`f_${field.id}`} name={field.name}
-                    value={value} required={required} class="form-input" />
-                ) : field.type === 'email' ? (
-                  <input type="email" id={`f_${field.id}`} name={field.name}
-                    value={value} required={required} placeholder={ph ?? 'exemple@domaine.com'} class="form-input" />
-                ) : field.type === 'url' ? (
-                  <input type="url" id={`f_${field.id}`} name={field.name}
-                    value={value} required={required} placeholder={ph ?? 'https://'} class="form-input" />
-                ) : (
-                  <input type="text" id={`f_${field.id}`} name={field.name}
-                    value={value} required={required} placeholder={ph} class="form-input" />
-                )}
+                  {field.type === "richtext" ? (
+                    <RichTextEditor
+                      name={field.name}
+                      client:only='react'
+                      initialValue={value}
+                    />
+                  ) : field.type === "textarea" ? (
+                    <textarea
+                      id={`f_${field.id}`}
+                      name={field.name}
+                      rows={4}
+                      required={required}
+                      placeholder={ph}
+                      class='form-textarea'>
+                      {value}
+                    </textarea>
+                  ) : field.type === "boolean" ? (
+                    <div class='checkbox-group'>
+                      <input
+                        type='checkbox'
+                        id={`f_${field.id}`}
+                        name={field.name}
+                        checked={value === "true"}
+                        class='checkbox'
+                      />
+                      <label for={`f_${field.id}`} class='checkbox-label'>
+                        {field.label}
+                      </label>
+                    </div>
+                  ) : field.type === "select" ? (
+                    <select
+                      id={`f_${field.id}`}
+                      name={field.name}
+                      required={required}
+                      class='form-select'>
+                      <option value=''>{ph ?? "— Choisir —"}</option>
+                      {parsedOptions.map((opt) => (
+                        <option value={opt} selected={value === opt}>
+                          {opt}
+                        </option>
+                      ))}
+                    </select>
+                  ) : field.type === "number" ? (
+                    <input
+                      type='number'
+                      id={`f_${field.id}`}
+                      name={field.name}
+                      value={value}
+                      required={required}
+                      placeholder={ph}
+                      class='form-input'
+                    />
+                  ) : field.type === "date" ? (
+                    <input
+                      type='date'
+                      id={`f_${field.id}`}
+                      name={field.name}
+                      value={value}
+                      required={required}
+                      class='form-input'
+                    />
+                  ) : field.type === "email" ? (
+                    <input
+                      type='email'
+                      id={`f_${field.id}`}
+                      name={field.name}
+                      value={value}
+                      required={required}
+                      placeholder={ph ?? "exemple@domaine.com"}
+                      class='form-input'
+                    />
+                  ) : field.type === "url" ? (
+                    <input
+                      type='url'
+                      id={`f_${field.id}`}
+                      name={field.name}
+                      value={value}
+                      required={required}
+                      placeholder={ph ?? "https://"}
+                      class='form-input'
+                    />
+                  ) : (
+                    <input
+                      type='text'
+                      id={`f_${field.id}`}
+                      name={field.name}
+                      value={value}
+                      required={required}
+                      placeholder={ph}
+                      class='form-input'
+                    />
+                  )}
 
-                {field.help_text && (
-                  <p class="help-text">{field.help_text}</p>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
+                  {field.help_text && (
+                    <p class='help-text'>{field.help_text}</p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )
+      }
 
       {/* ── Status (dynamic only) ── */}
-      {!isStatic && dynamicFields.length > 0 && (
-        <div class="form-section">
-          <label class="form-label">Statut</label>
-          <div class="radio-group">
-            <label class="radio-label">
-              <input type="radio" name="_status" value="draft" checked={dynamicEntryStatus === 'draft'} class="radio" />
-              <span class="radio-custom"></span>
-              Brouillon
-            </label>
-            <label class="radio-label">
-              <input type="radio" name="_status" value="published" checked={dynamicEntryStatus === 'published'} class="radio" />
-              <span class="radio-custom"></span>
-              Publié
-            </label>
+      {
+        !isStatic && dynamicFields.length > 0 && (
+          <div class='form-section'>
+            <label class='form-label'>Statut</label>
+            <div class='radio-group'>
+              <label class='radio-label'>
+                <input
+                  type='radio'
+                  name='_status'
+                  value='draft'
+                  checked={dynamicEntryStatus === "draft"}
+                  class='radio'
+                />
+                <span class='radio-custom' />
+                Brouillon
+              </label>
+              <label class='radio-label'>
+                <input
+                  type='radio'
+                  name='_status'
+                  value='published'
+                  checked={dynamicEntryStatus === "published"}
+                  class='radio'
+                />
+                <span class='radio-custom' />
+                Publié
+              </label>
+            </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
-      <div class="form-actions">
-        <a href={`/admin/${collection}`} class="btn btn-secondary">
-          Annuler
-        </a>
-        <button type="submit" class="btn btn-primary">
-          {isEdit ? 'Enregistrer' : 'Créer'}
+      <div class='form-actions'>
+        <a href={`/admin/${collection}`} class='btn btn-secondary'> Annuler </a>
+        <button type='submit' class='btn btn-primary'>
+          {isEdit ? "Enregistrer" : "Créer"}
         </button>
       </div>
-
     </form>
   </div>
 </Layout>
@@ -291,7 +432,9 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
     grid-column: 1 / -1;
   }
   @media (max-width: 600px) {
-    .fields-grid { grid-template-columns: 1fr; }
+    .fields-grid {
+      grid-template-columns: 1fr;
+    }
   }
   .form-group {
     display: flex;
@@ -306,7 +449,9 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
     align-items: center;
     gap: 8px;
   }
-  .required { color: var(--danger); }
+  .required {
+    color: var(--danger);
+  }
   .field-name {
     font-size: 11px;
     color: var(--text-light);
@@ -316,7 +461,9 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
     padding: 2px 6px;
     border-radius: 4px;
   }
-  .form-input, .form-select, .form-textarea {
+  .form-input,
+  .form-select,
+  .form-textarea {
     width: 100%;
     padding: 12px 14px;
     border: 1px solid var(--border);
@@ -326,7 +473,9 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
     background: var(--surface);
     transition: all 0.2s ease;
   }
-  .form-input:focus, .form-select:focus, .form-textarea:focus {
+  .form-input:focus,
+  .form-select:focus,
+  .form-textarea:focus {
     outline: none;
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15);
@@ -399,12 +548,23 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
     font-size: 14px;
     text-decoration: none;
   }
-  .link:hover { text-decoration: underline; }
+  .link:hover {
+    text-decoration: underline;
+  }
 
   @media (max-width: 640px) {
-    .form-card { padding: 20px; }
-    .form-header { flex-direction: column; align-items: flex-start; gap: 8px; }
-    .radio-group { flex-direction: column; gap: 12px; }
+    .form-card {
+      padding: 20px;
+    }
+    .form-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .radio-group {
+      flex-direction: column;
+      gap: 12px;
+    }
   }
 
   .tiptap-toolbar {
@@ -429,8 +589,13 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
     line-height: 1;
     transition: background 0.1s;
   }
-  .tiptap-toolbar button:hover { background: #e5e7eb; }
-  .tiptap-toolbar button.is-active { background: #dbeafe; color: #1d4ed8; }
+  .tiptap-toolbar button:hover {
+    background: #e5e7eb;
+  }
+  .tiptap-toolbar button.is-active {
+    background: #dbeafe;
+    color: #1d4ed8;
+  }
   .tiptap-toolbar .sep {
     width: 1px;
     background: #e5e7eb;
@@ -446,16 +611,45 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
     outline: none;
     cursor: text;
   }
-  .tiptap-content:focus-within { border-color: #2563eb; box-shadow: 0 0 0 2px #dbeafe; }
-  .tiptap-content p { margin: 0 0 8px; }
-  .tiptap-content p:last-child { margin-bottom: 0; }
-  .tiptap-content h1 { font-size: 22px; font-weight: 700; margin: 16px 0 8px; }
-  .tiptap-content h2 { font-size: 18px; font-weight: 600; margin: 14px 0 6px; }
-  .tiptap-content h3 { font-size: 16px; font-weight: 600; margin: 12px 0 4px; }
-  .tiptap-content strong { font-weight: 600; }
-  .tiptap-content em { font-style: italic; }
-  .tiptap-content ul, .tiptap-content ol { padding-left: 20px; margin: 8px 0; }
-  .tiptap-content li { margin: 2px 0; }
+  .tiptap-content:focus-within {
+    border-color: #2563eb;
+    box-shadow: 0 0 0 2px #dbeafe;
+  }
+  .tiptap-content p {
+    margin: 0 0 8px;
+  }
+  .tiptap-content p:last-child {
+    margin-bottom: 0;
+  }
+  .tiptap-content h1 {
+    font-size: 22px;
+    font-weight: 700;
+    margin: 16px 0 8px;
+  }
+  .tiptap-content h2 {
+    font-size: 18px;
+    font-weight: 600;
+    margin: 14px 0 6px;
+  }
+  .tiptap-content h3 {
+    font-size: 16px;
+    font-weight: 600;
+    margin: 12px 0 4px;
+  }
+  .tiptap-content strong {
+    font-weight: 600;
+  }
+  .tiptap-content em {
+    font-style: italic;
+  }
+  .tiptap-content ul,
+  .tiptap-content ol {
+    padding-left: 20px;
+    margin: 8px 0;
+  }
+  .tiptap-content li {
+    margin: 2px 0;
+  }
   .tiptap-content blockquote {
     border-left: 3px solid #d1d5db;
     padding-left: 12px;
@@ -479,7 +673,10 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
     font-size: 13px;
     margin: 8px 0;
   }
-  .tiptap-content .ProseMirror { outline: none; min-height: 160px; }
+  .tiptap-content .ProseMirror {
+    outline: none;
+    min-height: 160px;
+  }
   .tiptap-content .ProseMirror p.is-editor-empty:first-child::before {
     content: attr(data-placeholder);
     color: #9ca3af;

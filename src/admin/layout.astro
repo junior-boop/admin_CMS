@@ -1,329 +1,382 @@
 ---
-import type { CMSConfig } from '@geniusofdigital/astro-cms/config'
+import type { CMSConfig } from "@geniusofdigital/astro-cms/config";
 
 interface Props {
-  config: CMSConfig
-  title: string
-  activeCollection?: string
-  activeSystem?: string
-  db?: D1Database
+  config: CMSConfig;
+  title: string;
+  activeCollection?: string;
+  activeSystem?: string;
+  db?: D1Database;
 }
 
-const { config, title, activeCollection, activeSystem, db } = Astro.props
-const collections = Object.entries(config.collections)
+const { config, title, activeCollection, activeSystem, db } = Astro.props;
+const collections = Object.entries(config.collections);
 
-let dynamicCollections: Array<{ id: number; name: string; slug: string }> = []
+let dynamicCollections: Array<{ id: number; name: string; slug: string }> = [];
 if (db) {
   try {
-    const r = await db.prepare('SELECT id, name, slug FROM cms_content_types ORDER BY name').all<{ id: number; name: string; slug: string }>()
-    dynamicCollections = r.results
+    const r = await db
+      .prepare("SELECT id, name, slug FROM cms_content_types ORDER BY name")
+      .all<{ id: number; name: string; slug: string }>();
+    dynamicCollections = r.results;
   } catch {}
 }
 ---
 
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{title} — CMS Admin</title>
-  <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+<!doctype html>
+<html lang='fr'>
+  <head>
+    <meta charset='UTF-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0' />
+    <title>{title} — CMS Admin</title>
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-    :root {
-      --primary: #6366f1;
-      --primary-hover: #4f46e5;
-      --primary-light: #eef2ff;
-      --surface: #ffffff;
-      --surface-elevated: #f8fafc;
-      --border: #e2e8f0;
-      --border-focus: #6366f1;
-      --text: #1e293b;
-      --text-muted: #64748b;
-      --text-light: #94a3b8;
-      --danger: #ef4444;
-      --success: #10b981;
-      --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
-      --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    }
+      input {
+        width: 100% !important;
+      }
 
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-      color: var(--text);
-      display: flex;
-      min-height: 100vh;
-    }
+      :root {
+        --primary: #6366f1;
+        --primary-hover: #4f46e5;
+        --primary-light: #eef2ff;
+        --surface: #ffffff;
+        --surface-elevated: #f8fafc;
+        --border: #e2e8f0;
+        --border-focus: #6366f1;
+        --text: #1e293b;
+        --text-muted: #64748b;
+        --text-light: #94a3b8;
+        --danger: #ef4444;
+        --success: #10b981;
+        --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+        --shadow-lg:
+          0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+      }
 
-    /* ── Sidebar ─────────────────────────────────── */
-    .sidebar {
-      width: 240px;
-      height: 100vh;
-      position: fixed;
-      top: 0;
-      left: 0;
-      background: var(--surface);
-      border-right: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      flex-shrink: 0;
-      box-shadow: 2px 0 8px rgb(0 0 0 / 0.04);
-      z-index: 100;
-    }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+        color: var(--text);
+        display: flex;
+        min-height: 100vh;
+      }
 
-    .sidebar-brand {
-      padding: 20px 20px 16px;
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--primary);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-    .sidebar-brand::before {
-      content: '';
-      width: 28px; height: 28px;
-      background: linear-gradient(135deg, var(--primary), #818cf8);
-      border-radius: 6px;
-    }
+      /* ── Sidebar ─────────────────────────────────── */
+      .sidebar {
+        width: 240px;
+        height: 100vh;
+        position: fixed;
+        top: 0;
+        left: 0;
+        background: var(--surface);
+        border-right: 1px solid var(--border);
+        display: flex;
+        flex-direction: column;
+        flex-shrink: 0;
+        box-shadow: 2px 0 8px rgb(0 0 0 / 0.04);
+        z-index: 100;
+      }
 
-    .sidebar-nav { flex: 1; padding: 12px 0; overflow-y: auto; }
+      .sidebar-brand {
+        padding: 20px 20px 16px;
+        font-size: 18px;
+        font-weight: 700;
+        color: var(--primary);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .sidebar-brand::before {
+        content: "";
+        width: 28px;
+        height: 28px;
+        background: linear-gradient(135deg, var(--primary), #818cf8);
+        border-radius: 6px;
+      }
 
-    .nav-section-label {
-      padding: 16px 20px 8px;
-      font-size: 11px;
-      font-weight: 600;
-      color: var(--text-light);
-      text-transform: uppercase;
-      letter-spacing: 0.08em;
-    }
+      .sidebar-nav {
+        flex: 1;
+        padding: 12px 0;
+        overflow-y: auto;
+      }
 
-    .nav-link {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 10px 20px;
-      font-size: 14px;
-      color: var(--text-muted);
-      text-decoration: none;
-      border-radius: 0;
-      transition: all 0.15s ease;
-      position: relative;
-    }
+      .nav-section-label {
+        padding: 16px 20px 8px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-light);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
 
-    .nav-link::before {
-      content: '';
-      position: absolute;
-      left: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      width: 3px;
-      height: 0;
-      background: var(--primary);
-      border-radius: 0 2px 2px 0;
-      transition: height 0.15s ease;
-    }
+      .nav-link {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 20px;
+        font-size: 14px;
+        color: var(--text-muted);
+        text-decoration: none;
+        border-radius: 0;
+        transition: all 0.15s ease;
+        position: relative;
+      }
 
-    .nav-link:hover {
-      background: var(--surface-elevated);
-      color: var(--text);
-    }
+      .nav-link::before {
+        content: "";
+        position: absolute;
+        left: 0;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 3px;
+        height: 0;
+        background: var(--primary);
+        border-radius: 0 2px 2px 0;
+        transition: height 0.15s ease;
+      }
 
-    .nav-link.active {
-      background: var(--primary-light);
-      color: var(--primary);
-      font-weight: 500;
-    }
-    .nav-link.active::before { height: 20px; }
+      .nav-link:hover {
+        background: var(--surface-elevated);
+        color: var(--text);
+      }
 
-    /* ── Main ────────────────────────────────────── */
-    .main {
-      flex: 1;
-      margin-left: 240px;
-      display: flex;
-      flex-direction: column;
-      min-height: 100vh;
-    }
+      .nav-link.active {
+        background: var(--primary-light);
+        color: var(--primary);
+        font-weight: 500;
+      }
+      .nav-link.active::before {
+        height: 20px;
+      }
 
-    .topbar {
-      height: 64px;
-      position: sticky;
-      top: 0;
-      background: var(--surface);
-      border-bottom: 1px solid var(--border);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      padding: 0 32px;
-      box-shadow: var(--shadow);
-      z-index: 50;
-    }
+      /* ── Main ────────────────────────────────────── */
+      .main {
+        flex: 1;
+        margin-left: 240px;
+        display: flex;
+        flex-direction: column;
+        min-height: 100vh;
+      }
 
-    .topbar-title {
-      font-size: 17px;
-      font-weight: 600;
-      color: var(--text);
-    }
+      .topbar {
+        height: 64px;
+        position: sticky;
+        top: 0;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 32px;
+        box-shadow: var(--shadow);
+        z-index: 50;
+      }
 
-    .topbar-user {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-size: 14px;
-      color: var(--text-muted);
-    }
+      .topbar-title {
+        font-size: 17px;
+        font-weight: 600;
+        color: var(--text);
+      }
 
-    .topbar-user svg {
-      width: 32px; height: 32px;
-      stroke: var(--text-light);
-    }
+      .topbar-user {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        color: var(--text-muted);
+      }
 
-    .content {
-      flex: 1;
-      padding: 32px;
-      overflow-y: auto;
-    }
+      .topbar-user svg {
+        width: 32px;
+        height: 32px;
+        stroke: var(--text-light);
+      }
 
-    @media (max-width: 768px) {
-      .sidebar { position: fixed; transform: translateX(-100%); transition: transform 0.3s ease; }
-      .sidebar.open { transform: translateX(0); }
-      .main { margin-left: 0; }
-      .topbar { padding: 0 16px; }
-      .content { padding: 20px 16px; }
-    }
+      .content {
+        flex: 1;
+        padding: 32px;
+        overflow-y: auto;
+      }
 
-    /* ── Shared components ───────────────────────── */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 10px 18px;
-      font-size: 14px;
-      font-weight: 500;
-      border-radius: 8px;
-      border: none;
-      cursor: pointer;
-      transition: all 0.15s ease;
-      text-decoration: none;
-    }
-    .btn-primary {
-      background: var(--primary);
-      color: #fff;
-      box-shadow: 0 2px 4px rgb(99 102 241 / 0.3);
-    }
-    .btn-primary:hover {
-      background: var(--primary-hover);
-      transform: translateY(-1px);
-      box-shadow: 0 4px 8px rgb(99 102 241 / 0.4);
-    }
-    .btn-secondary {
-      background: var(--surface);
-      color: var(--text-muted);
-      border: 1px solid var(--border);
-    }
-    .btn-secondary:hover {
-      background: var(--surface-elevated);
-      color: var(--text);
-      border-color: var(--text-light);
-    }
-    .btn-danger {
-      background: transparent;
-      color: var(--danger);
-    }
-    .btn-danger:hover { background: #fef2f2; }
+      @media (max-width: 768px) {
+        .sidebar {
+          position: fixed;
+          transform: translateX(-100%);
+          transition: transform 0.3s ease;
+        }
+        .sidebar.open {
+          transform: translateX(0);
+        }
+        .main {
+          margin-left: 0;
+        }
+        .topbar {
+          padding: 0 16px;
+        }
+        .content {
+          padding: 20px 16px;
+        }
+      }
 
-    .card {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 24px;
-      box-shadow: var(--shadow);
-    }
-  </style>
-</head>
-<body>
+      /* ── Shared components ───────────────────────── */
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        padding: 10px 18px;
+        font-size: 14px;
+        font-weight: 500;
+        border-radius: 8px;
+        border: none;
+        cursor: pointer;
+        transition: all 0.15s ease;
+        text-decoration: none;
+      }
+      .btn-primary {
+        background: var(--primary);
+        color: #fff;
+        box-shadow: 0 2px 4px rgb(99 102 241 / 0.3);
+      }
+      .btn-primary:hover {
+        background: var(--primary-hover);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 8px rgb(99 102 241 / 0.4);
+      }
+      .btn-secondary {
+        background: var(--surface);
+        color: var(--text-muted);
+        border: 1px solid var(--border);
+      }
+      .btn-secondary:hover {
+        background: var(--surface-elevated);
+        color: var(--text);
+        border-color: var(--text-light);
+      }
+      .btn-danger {
+        background: transparent;
+        color: var(--danger);
+      }
+      .btn-danger:hover {
+        background: #fef2f2;
+      }
 
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-brand">Simple-cms</div>
+      .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: var(--shadow);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Sidebar -->
+    <aside class='sidebar'>
+      <div class='sidebar-brand'>Simple-cms</div>
 
-    <nav class="sidebar-nav">
-
-      <!-- Contenu: Media (built-in) + user collections -->
-      <div class="nav-section-label">Contenu</div>
-      <a href="/admin/media"
-         class:list={['nav-link', { active: activeSystem === 'media' }]}>
-        Media
-      </a>
-      {collections.map(([name]) => (
-        <a href={`/admin/${name}`}
-           class:list={['nav-link', { active: activeCollection === name }]}>
-          {name.charAt(0).toUpperCase() + name.slice(1)}
+      <nav class='sidebar-nav'>
+        <!-- Contenu: Media (built-in) + user collections -->
+        <div class='nav-section-label'>Contenu</div>
+        <a
+          href='/admin/media'
+          class:list={["nav-link", { active: activeSystem === "media" }]}>
+          Media
         </a>
-      ))}
-      {dynamicCollections.map((ct) => (
-        <a href={`/admin/${ct.slug}`}
-           class:list={['nav-link', { active: activeCollection === ct.slug }]}>
-          {ct.name}
+        {
+          collections.map(([name]) => (
+            <a
+              href={`/admin/${name}`}
+              class:list={["nav-link", { active: activeCollection === name }]}>
+              {name.charAt(0).toUpperCase() + name.slice(1)}
+            </a>
+          ))
+        }
+        {
+          dynamicCollections.map((ct) => (
+            <a
+              href={`/admin/${ct.slug}`}
+              class:list={[
+                "nav-link",
+                { active: activeCollection === ct.slug },
+              ]}>
+              {ct.name}
+            </a>
+          ))
+        }
+
+        <!-- Gestion: system collections -->
+        <div class='nav-section-label' style='margin-top:12px'>Gestion</div>
+        {
+          [
+            { slug: "comments", label: "Commentaires" },
+            { slug: "forms", label: "Formulaires" },
+            { slug: "menu", label: "Menus" },
+            { slug: "sections", label: "Sections" },
+            { slug: "widgets", label: "Widgets" },
+            { slug: "tags", label: "Tags" },
+            { slug: "categories", label: "Catégories" },
+          ].map(({ slug, label }) => (
+            <a
+              href={`/admin/system/${slug}`}
+              class:list={["nav-link", { active: activeSystem === slug }]}>
+              {label}
+            </a>
+          ))
+        }
+
+        <!-- Admin -->
+        <div class='nav-section-label' style='margin-top:12px'>Admin</div>
+        <a
+          href='/admin/system/content-types'
+          class:list={[
+            "nav-link",
+            { active: activeSystem === "content-types" },
+          ]}>
+          Content Type
         </a>
-      ))}
-
-      <!-- Gestion: system collections -->
-      <div class="nav-section-label" style="margin-top:12px">Gestion</div>
-      {[
-        { slug: 'comments',   label: 'Commentaires' },
-        { slug: 'forms',      label: 'Formulaires' },
-        { slug: 'menu',       label: 'Menus' },
-        { slug: 'sections',   label: 'Sections' },
-        { slug: 'widgets',    label: 'Widgets' },
-        { slug: 'tags',       label: 'Tags' },
-        { slug: 'categories', label: 'Catégories' },
-      ].map(({ slug, label }) => (
-        <a href={`/admin/system/${slug}`}
-           class:list={['nav-link', { active: activeSystem === slug }]}>
-          {label}
+        <a
+          href='/admin/system/users'
+          class:list={["nav-link", { active: activeSystem === "users" }]}>
+          Users
         </a>
-      ))}
-
-      <!-- Admin -->
-      <div class="nav-section-label" style="margin-top:12px">Admin</div>
-      <a href="/admin/system/content-types"
-         class:list={['nav-link', { active: activeSystem === 'content-types' }]}>
-        Content Type
-      </a>
-      <a href="/admin/system/users"
-         class:list={['nav-link', { active: activeSystem === 'users' }]}>
-        Users
-      </a>
-      <a href="/admin/system/settings"
-         class:list={['nav-link', { active: activeSystem === 'settings' }]}>
-        Settings
-      </a>
-
-    </nav>
-  </aside>
-
-  <!-- Main area -->
-  <div class="main">
-    <header class="topbar">
-      <span class="topbar-title">{title}</span>
-      <div class="topbar-user">
-        <svg viewBox="0 0 24 24" fill="none" stroke-width="1.5">
-          <circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-        </svg>
-        Admin
-        <a href="/admin/logout" style="font-size:13px; color:#6b7280; text-decoration:none; margin-left:12px; padding:4px 10px; border:1px solid #e5e7eb; border-radius:5px;">
-          Déconnexion
+        <a
+          href='/admin/system/settings'
+          class:list={["nav-link", { active: activeSystem === "settings" }]}>
+          Settings
         </a>
-      </div>
-    </header>
+      </nav>
+    </aside>
 
-    <main class="content">
-      <slot />
-    </main>
-  </div>
+    <!-- Main area -->
+    <div class='main'>
+      <header class='topbar'>
+        <span class='topbar-title'>{title}</span>
+        <div class='topbar-user'>
+          <svg viewBox='0 0 24 24' fill='none' stroke-width='1.5'>
+            <circle cx='12' cy='8' r='4'></circle><path
+              d='M4 20c0-4 3.6-7 8-7s8 3 8 7'></path>
+          </svg>
+          Admin
+          <a
+            href='/admin/logout'
+            style='font-size:13px; color:#6b7280; text-decoration:none; margin-left:12px; padding:4px 10px; border:1px solid #e5e7eb; border-radius:5px;'>
+            Déconnexion
+          </a>
+        </div>
+      </header>
 
-</body>
+      <main class='content'>
+        <slot />
+      </main>
+    </div>
+  </body>
 </html>

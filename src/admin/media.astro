@@ -1,28 +1,28 @@
 ---
-import Layout from './layout.astro'
-import { createCachedSystemClient } from '@geniusofdigital/astro-cms/system'
-import { createMediaClient } from '@geniusofdigital/astro-cms'
-import { env as _cfEnv } from 'cloudflare:workers'
+import Layout from "./layout.astro";
+import { createCachedSystemClient } from "@geniusofdigital/astro-cms/system";
+import { createMediaClient } from "@geniusofdigital/astro-cms";
+import { env as _cfEnv } from "cloudflare:workers";
 
-const config = (await import('virtual:astro-cms/config')).default
-const env = _cfEnv as Record<string, unknown>
-const db = env['DB'] as D1Database
-const kv = env['CACHE'] as KVNamespace | undefined
-const bucket = env['BUCKET'] as R2Bucket | undefined
-const system = createCachedSystemClient(db, kv)
+const config = (await import("virtual:astro-cms/config")).default;
+const env = _cfEnv as Record<string, unknown>;
+const db = env["DB"] as D1Database;
+const kv = env["CACHE"] as KVNamespace | undefined;
+const bucket = env["BUCKET"] as R2Bucket | undefined;
+const system = createCachedSystemClient(db, kv);
 
-if (Astro.request.method === 'POST') {
-  const form = await Astro.request.formData()
-  const action = form.get('_action') as string
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const action = form.get("_action") as string;
 
-  if (action === 'upload' && bucket) {
-    const file = form.get('file') as File | null
+  if (action === "upload" && bucket) {
+    const file = form.get("file") as File | null;
     if (file && file.size > 0) {
-      const mediaClient = createMediaClient(bucket, '/media')
+      const mediaClient = createMediaClient(bucket, "/media");
       const uploaded = await mediaClient.upload(await file.arrayBuffer(), {
         key: `uploads/${Date.now()}-${file.name}`,
         contentType: file.type,
-      })
+      });
       await system.mediaDb.create({
         key: uploaded.key,
         filename: file.name,
@@ -30,68 +30,93 @@ if (Astro.request.method === 'POST') {
         size: uploaded.size,
         url: uploaded.url,
         alt: null,
-      })
+      });
     }
   }
 
-  if (action === 'delete') {
-    const id = parseInt(form.get('id') as string, 10)
-    await system.mediaDb.delete(id)
+  if (action === "delete") {
+    const id = parseInt(form.get("id") as string, 10);
+    await system.mediaDb.delete(id);
   }
 
-  return Astro.redirect('/admin/media')
+  return Astro.redirect("/admin/media");
 }
 
-const mediaList = await system.mediaDb.list()
+const mediaList = await system.mediaDb.list();
 ---
 
-<Layout config={config} title="Media Library" activeSystem="media" db={db}>
-  <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
-    <h1 style="font-size:22px; font-weight:600">Media Library</h1>
-    <label style="
+<Layout config={config} title='Media Library' activeSystem='media' db={db}>
+  <div
+    style='display:flex; justify-content:space-between; align-items:center; margin-bottom:24px'>
+    <h1 style='font-size:22px; font-weight:600'>Media Library</h1>
+    <label
+      style='
       background:#2563eb; color:#fff; padding:8px 16px;
       border-radius:6px; font-size:14px; font-weight:500; cursor:pointer
-    ">
+    '>
       + Upload
-      <form method="POST" enctype="multipart/form-data" id="upload-form" style="display:none">
-        <input type="hidden" name="_action" value="upload" />
-        <input type="file" name="file" accept="image/*,video/*,application/pdf"
-          onchange={'this.closest(\'form\').submit()'} />
+      <form
+        method='POST'
+        enctype='multipart/form-data'
+        id='upload-form'
+        style='display:none'>
+        <input type='hidden' name='_action' value='upload' />
+        <input
+          type='file'
+          name='file'
+          accept='image/*,video/*,application/pdf'
+          onchange={"this.closest('form').submit()"}
+        />
       </form>
     </label>
   </div>
 
-  {mediaList.length === 0 ? (
-    <div style="text-align:center; padding:80px; color:#9ca3af">
-      <p style="font-size:16px">No media files yet.</p>
-      <p style="font-size:14px; margin-top:6px">Upload your first file using the button above.</p>
-    </div>
-  ) : (
-    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:16px">
-      {mediaList.map((m) => (
-        <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
-          {m.contentType.startsWith('image/') ? (
-            <img src={m.url} alt={m.alt ?? String(m.filename)}
-              style="width:100%; height:120px; object-fit:cover; display:block" />
-          ) : (
-            <div style="width:100%; height:120px; background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:12px">
-              {m.contentType}
+  {
+    mediaList.length === 0 ? (
+      <div style='text-align:center; padding:80px; color:#9ca3af'>
+        <p style='font-size:16px'>No media files yet.</p>
+        <p style='font-size:14px; margin-top:6px'>
+          Upload your first file using the button above.
+        </p>
+      </div>
+    ) : (
+      <div style='display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px'>
+        {mediaList.map((m) => (
+          <div style='background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden'>
+            {m.contentType.startsWith("image/") ? (
+              <img
+                src={m.url}
+                alt={m.alt ?? String(m.filename)}
+                style='width:100%; aspect-ratio:1/1; object-fit:cover; display:block'
+              />
+            ) : (
+              <div style='width:100%; aspect-ratio:1/1; overflow:hidden; background:#f3f4f6; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:12px'>
+                {m.contentType}
+              </div>
+            )}
+            <div style='padding:8px 10px'>
+              <p style='font-size:12px; color:#374151; overflow:hidden; text-overflow:ellipsis; white-space:nowrap'>
+                {m.filename}
+              </p>
+              <p style='font-size:11px; color:#9ca3af; margin-top:2px'>
+                {Math.round(m.size / 1024)} KB
+              </p>
+              <form
+                method='POST'
+                style='margin-top:6px'
+                onsubmit={'return confirm("Delete this file?")'}>
+                <input type='hidden' name='_action' value='delete' />
+                <input type='hidden' name='id' value={String(m.id)} />
+                <button
+                  type='submit'
+                  style='background:none; border:none; color:#ef4444; font-size:12px; cursor:pointer; padding:0'>
+                  Delete
+                </button>
+              </form>
             </div>
-          )}
-          <div style="padding:8px 10px">
-            <p style="font-size:12px; color:#374151; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">{m.filename}</p>
-            <p style="font-size:11px; color:#9ca3af; margin-top:2px">{Math.round(m.size / 1024)} KB</p>
-            <form method="POST" style="margin-top:6px" onsubmit={'return confirm("Delete this file?")'}>
-              <input type="hidden" name="_action" value="delete" />
-              <input type="hidden" name="id" value={String(m.id)} />
-              <button type="submit"
-                style="background:none; border:none; color:#ef4444; font-size:12px; cursor:pointer; padding:0">
-                Delete
-              </button>
-            </form>
           </div>
-        </div>
-      ))}
-    </div>
-  )}
+        ))}
+      </div>
+    )
+  }
 </Layout>

@@ -1,151 +1,214 @@
 ---
-import Layout from '../layout.astro'
-import { createCachedSystemClient } from '@geniusofdigital/astro-cms/system'
-import { env as _cfEnv } from 'cloudflare:workers'
+import Layout from "../layout.astro";
+import { createCachedSystemClient } from "@geniusofdigital/astro-cms/system";
+import { env as _cfEnv } from "cloudflare:workers";
 
-const config = (await import('virtual:astro-cms/config')).default
-const env = _cfEnv as Record<string, unknown>
-const db = env['DB'] as D1Database
-const kv = env['CACHE'] as KVNamespace
-const system = createCachedSystemClient(db, kv)
+const config = (await import("virtual:astro-cms/config")).default;
+const env = _cfEnv as Record<string, unknown>;
+const db = env["DB"] as D1Database;
+const kv = env["CACHE"] as KVNamespace;
+const system = createCachedSystemClient(db, kv);
 
-if (Astro.request.method === 'POST') {
-  const form = await Astro.request.formData()
-  const action = form.get('_action') as string
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const action = form.get("_action") as string;
 
-  if (action === 'create') {
-    const name = (form.get('name') as string).trim()
-    const slug = (form.get('slug') as string).trim()
-    const description = (form.get('description') as string | null)?.trim() || undefined
+  if (action === "create") {
+    const name = (form.get("name") as string).trim();
+    const slug = (form.get("slug") as string).trim();
+    const description =
+      (form.get("description") as string | null)?.trim() || undefined;
     if (name && slug) {
-      await system.contentTypes.create({ name, slug, description })
+      await system.contentTypes.create({ name, slug, description });
     }
   }
 
-  if (action === 'delete') {
-    const id = parseInt(form.get('id') as string, 10)
-    await system.contentTypes.delete(id)
+  if (action === "delete") {
+    const id = parseInt(form.get("id") as string, 10);
+    await system.contentTypes.delete(id);
   }
 
-  return Astro.redirect('/admin/system/content-types')
+  return Astro.redirect("/admin/system/content-types");
 }
 
-const contentTypes = await system.contentTypes.list()
+const contentTypes = await system.contentTypes.list();
 
-const entryCounts: Record<number, number> = {}
+const entryCounts: Record<number, number> = {};
 for (const ct of contentTypes) {
-  const entries = await system.entries.list(ct.id)
-  entryCounts[ct.id] = entries.length
+  const entries = await system.entries.list(ct.id);
+  entryCounts[ct.id] = entries.length;
 }
 
-const fieldCounts: Record<number, number> = {}
+const fieldCounts: Record<number, number> = {};
 for (const ct of contentTypes) {
-  const fields = await system.contentTypes.listFields(ct.id)
-  fieldCounts[ct.id] = fields.length
+  const fields = await system.contentTypes.listFields(ct.id);
+  fieldCounts[ct.id] = fields.length;
 }
 
-const staticCollections = Object.entries(config.collections)
+const staticCollections = Object.entries(config.collections);
 ---
 
-<Layout config={config} title="Content Types" activeSystem="content-types" db={db}>
-  <div class="page-header">
+<Layout
+  config={config}
+  title='Content Types'
+  activeSystem='content-types'
+  db={db}>
+  <div class='page-header'>
     <h1>Content Types</h1>
-    <span class="badge">{contentTypes.length} type{contentTypes.length !== 1 ? 's' : ''} dynamique{contentTypes.length !== 1 ? 's' : ''}</span>
+    <span class='badge'
+      >{contentTypes.length} type{contentTypes.length !== 1 ? "s" : ""} dynamique{
+        contentTypes.length !== 1 ? "s" : ""
+      }</span
+    >
   </div>
 
-  {staticCollections.length > 0 && (
-    <div class="info-card">
-      <p class="info-title">Collections statiques (cms.config.ts)</p>
-      <div class="tags-list">
-        {staticCollections.map(([name, col]) => (
-          <a href={`/admin/${name}`} class="tag">
-            {name}
-            <span class="tag-count">{Object.keys(col.fields).length} champs</span>
-          </a>
-        ))}
+  {
+    staticCollections.length > 0 && (
+      <div class='info-card'>
+        <p class='info-title'>Collections statiques (cms.config.ts)</p>
+        <div class='tags-list'>
+          {staticCollections.map(([name, col]) => (
+            <a href={`/admin/${name}`} class='tag'>
+              {name}
+              <span class='tag-count'>
+                {Object.keys(col.fields).length} champs
+              </span>
+            </a>
+          ))}
+        </div>
       </div>
-    </div>
-  )}
+    )
+  }
 
-  <div class="header-row">
-    <button class="btn btn-primary" onclick="document.getElementById('modal-new').showModal()">
+  <div class='header-row'>
+    <button
+      class='btn btn-primary'
+      onclick="document.getElementById('modal-new').showModal()">
       + Nouvelle Collection
     </button>
   </div>
 
-  {contentTypes.length === 0 ? (
-    <div class="empty-state">
-      <p>Aucun type de contenu dynamique.</p>
-      <p class="hint">Créez votre premier type ci-dessus — il apparaîtra dans la nav comme WordPress.</p>
-    </div>
-  ) : (
-    <div class="table-card">
-      <table>
-        <thead>
-          <tr>
-            <th>Nom</th>
-            <th>Slug</th>
-            <th>Description</th>
-            <th>Champs</th>
-            <th>Entrées</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {contentTypes.map((ct) => (
-            <tr>
-              <td class="name-cell">
-                <a href={`/admin/${ct.slug}`}>{ct.name}</a>
-              </td>
-              <td class="mono">{ct.slug}</td>
-              <td class="muted">{ct.description ?? '—'}</td>
-              <td>
-                <span class="badge-sm">{fieldCounts[ct.id] ?? 0} champ{(fieldCounts[ct.id] ?? 0) !== 1 ? 's' : ''}</span>
-              </td>
-              <td>
-                <span class="badge-sm success">{entryCounts[ct.id] ?? 0} entrée{(entryCounts[ct.id] ?? 0) !== 1 ? 's' : ''}</span>
-              </td>
-              <td class="actions">
-                <a href={`/admin/system/content-types/${ct.id}`} class="btn btn-secondary btn-sm">Champs</a>
-                <a href={`/admin/${ct.slug}`} class="btn btn-secondary btn-sm green">Contenu</a>
-                <form method="POST" onsubmit="return confirm('Supprimer ce type et toutes ses entrées ?')">
-                  <input type="hidden" name="_action" value="delete" />
-                  <input type="hidden" name="id" value={String(ct.id)} />
-                  <button type="submit" class="btn btn-danger btn-sm">Supprimer</button>
-                </form>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )}
-
-  <dialog id="modal-new" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2>Nouvelle Collection</h2>
-        <button class="close-btn" onclick="document.getElementById('modal-new').close()">×</button>
+  {
+    contentTypes.length === 0 ? (
+      <div class='empty-state'>
+        <p>Aucun type de contenu dynamique.</p>
+        <p class='hint'>
+          Créez votre premier type ci-dessus — il apparaîtra dans la nav comme
+          WordPress.
+        </p>
       </div>
-      <form method="POST">
-        <input type="hidden" name="_action" value="create" />
-        <div class="modal-body">
-          <div class="form-group">
+    ) : (
+      <div class='table-card'>
+        <table>
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Slug</th>
+              <th>Description</th>
+              <th>Champs</th>
+              <th>Entrées</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {contentTypes.map((ct) => (
+              <tr>
+                <td class='name-cell'>
+                  <a href={`/admin/${ct.slug}`}>{ct.name}</a>
+                </td>
+                <td class='mono'>{ct.slug}</td>
+                <td class='muted'>{ct.description ?? "—"}</td>
+                <td>
+                  <span class='badge-sm'>
+                    {fieldCounts[ct.id] ?? 0} champ
+                    {(fieldCounts[ct.id] ?? 0) !== 1 ? "s" : ""}
+                  </span>
+                </td>
+                <td>
+                  <span class='badge-sm success'>
+                    {entryCounts[ct.id] ?? 0} entrée
+                    {(entryCounts[ct.id] ?? 0) !== 1 ? "s" : ""}
+                  </span>
+                </td>
+                <td class='actions'>
+                  <a
+                    href={`/admin/system/content-types/${ct.id}`}
+                    class='btn btn-secondary btn-sm'>
+                    Champs
+                  </a>
+                  <a
+                    href={`/admin/${ct.slug}`}
+                    class='btn btn-secondary btn-sm green'>
+                    Contenu
+                  </a>
+                  <form
+                    method='POST'
+                    onsubmit="confirm('Supprimer ce type et toutes ses entrées ?')">
+                    <input type='hidden' name='_action' value='delete' />
+                    <input type='hidden' name='id' value={String(ct.id)} />
+                    <button type='submit' class='btn btn-danger btn-sm'>
+                      Supprimer
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
+
+  <dialog id='modal-new' class='modal'>
+    <div class='modal-content'>
+      <div class='modal-header'>
+        <h2>Nouvelle Collection</h2>
+        <button
+          class='close-btn'
+          onclick="document.getElementById('modal-new').close()">×</button
+        >
+      </div>
+      <form method='POST'>
+        <input type='hidden' name='_action' value='create' />
+        <div class='modal-body'>
+          <div class='form-group'>
             <label>Nom *</label>
-            <input type="text" name="name" required placeholder="ex: Projets" class="form-input" />
+            <input
+              type='text'
+              name='name'
+              required
+              placeholder='ex: Projets'
+              class='form-input'
+            />
           </div>
-          <div class="form-group">
+          <div class='form-group'>
             <label>Slug *</label>
-            <input type="text" name="slug" required placeholder="ex: projets" class="form-input mono" />
+            <input
+              type='text'
+              name='slug'
+              required
+              placeholder='ex: projets'
+              class='form-input mono'
+            />
           </div>
-          <div class="form-group">
+          <div class='form-group'>
             <label>Description</label>
-            <input type="text" name="description" placeholder="Optionnel" class="form-input" />
+            <input
+              type='text'
+              name='description'
+              placeholder='Optionnel'
+              class='form-input'
+            />
           </div>
         </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-secondary" onclick="document.getElementById('modal-new').close()">Annuler</button>
-          <button type="submit" class="btn btn-primary">Créer</button>
+        <div class='modal-footer'>
+          <button
+            type='button'
+            class='btn btn-secondary'
+            onclick="document.getElementById('modal-new').close()"
+            >Annuler</button
+          >
+          <button type='submit' class='btn btn-primary'>Créer</button>
         </div>
       </form>
     </div>
@@ -159,7 +222,11 @@ const staticCollections = Object.entries(config.collections)
     align-items: center;
     margin-bottom: 24px;
   }
-  .page-header h1 { font-size: 24px; font-weight: 600; color: var(--text); }
+  .page-header h1 {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--text);
+  }
   .badge {
     font-size: 13px;
     color: var(--text-light);
@@ -180,7 +247,11 @@ const staticCollections = Object.entries(config.collections)
     font-weight: 500;
     margin-bottom: 12px;
   }
-  .tags-list { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tags-list {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
   .tag {
     display: inline-flex;
     align-items: center;
@@ -194,9 +265,18 @@ const staticCollections = Object.entries(config.collections)
     text-decoration: none;
     transition: all 0.15s;
   }
-  .tag:hover { background: var(--primary-light); }
-  .tag-count { color: var(--text-light); font-size: 12px; }
-  .header-row { margin-bottom: 20px; display: flex; justify-content: flex-end; }
+  .tag:hover {
+    background: var(--primary-light);
+  }
+  .tag-count {
+    color: var(--text-light);
+    font-size: 12px;
+  }
+  .header-row {
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: flex-end;
+  }
   .table-card {
     background: var(--surface);
     border: 1px solid var(--border);
@@ -204,7 +284,11 @@ const staticCollections = Object.entries(config.collections)
     overflow: hidden;
     box-shadow: var(--shadow);
   }
-  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+  }
   th {
     padding: 14px 20px;
     text-align: left;
@@ -215,14 +299,34 @@ const staticCollections = Object.entries(config.collections)
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
-  td { padding: 14px 20px; border-bottom: 1px solid var(--border); }
-  tr:last-child td { border-bottom: none; }
-  tr:hover { background: var(--surface-elevated); }
-  .name-cell { font-weight: 500; }
-  .name-cell a { color: var(--text); text-decoration: none; }
-  .name-cell a:hover { color: var(--primary); }
-  .mono { font-family: monospace; font-size: 13px; color: var(--text-muted); }
-  .muted { color: var(--text-light); }
+  td {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  tr:last-child td {
+    border-bottom: none;
+  }
+  tr:hover {
+    background: var(--surface-elevated);
+  }
+  .name-cell {
+    font-weight: 500;
+  }
+  .name-cell a {
+    color: var(--text);
+    text-decoration: none;
+  }
+  .name-cell a:hover {
+    color: var(--primary);
+  }
+  .mono {
+    font-family: monospace;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .muted {
+    color: var(--text-light);
+  }
   .badge-sm {
     display: inline-block;
     padding: 4px 10px;
@@ -231,10 +335,26 @@ const staticCollections = Object.entries(config.collections)
     background: var(--surface-elevated);
     color: var(--text-muted);
   }
-  .badge-sm.success { background: #f0fdf4; color: var(--success); }
-  .actions { text-align: right; display: flex; gap: 8px; justify-content: flex-end; white-space: nowrap; }
-  .btn-sm { padding: 6px 12px; font-size: 12px; }
-  .green { color: var(--success); border-color: #bbf7d0; background: #f0fdf4; }
+  .badge-sm.success {
+    background: #f0fdf4;
+    color: var(--success);
+  }
+  .actions {
+    text-align: right;
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    white-space: nowrap;
+  }
+  .btn-sm {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  .green {
+    color: var(--success);
+    border-color: #bbf7d0;
+    background: #f0fdf4;
+  }
   .empty-state {
     text-align: center;
     padding: 60px;
@@ -242,7 +362,10 @@ const staticCollections = Object.entries(config.collections)
     background: var(--surface);
     border-radius: 16px;
   }
-  .hint { font-size: 13px; margin-top: 8px; }
+  .hint {
+    font-size: 13px;
+    margin-top: 8px;
+  }
 
   .modal {
     border: none;
@@ -253,7 +376,10 @@ const staticCollections = Object.entries(config.collections)
     width: 90%;
     box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25);
   }
-  .modal::backdrop { background: rgb(0 0 0 / 0.5); backdrop-filter: blur(4px); }
+  .modal::backdrop {
+    background: rgb(0 0 0 / 0.5);
+    backdrop-filter: blur(4px);
+  }
   .modal-content {
     background: var(--surface);
     border-radius: 20px;
@@ -266,7 +392,11 @@ const staticCollections = Object.entries(config.collections)
     padding: 20px 24px;
     border-bottom: 1px solid var(--border);
   }
-  .modal-header h2 { font-size: 18px; font-weight: 600; color: var(--text); }
+  .modal-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text);
+  }
   .close-btn {
     background: none;
     border: none;
@@ -276,8 +406,15 @@ const staticCollections = Object.entries(config.collections)
     line-height: 1;
     padding: 0;
   }
-  .close-btn:hover { color: var(--text); }
-  .modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+  .close-btn:hover {
+    color: var(--text);
+  }
+  .modal-body {
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
   .modal-footer {
     padding: 16px 24px;
     border-top: 1px solid var(--border);
@@ -285,8 +422,16 @@ const staticCollections = Object.entries(config.collections)
     justify-content: flex-end;
     gap: 10px;
   }
-  .form-group { display: flex; flex-direction: column; gap: 6px; }
-  .form-group label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .form-group label {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text);
+  }
   .form-input {
     padding: 12px 14px;
     border: 1px solid var(--border);
@@ -299,5 +444,7 @@ const staticCollections = Object.entries(config.collections)
     border-color: var(--primary);
     box-shadow: 0 0 0 3px rgb(99 102 241 / 0.15);
   }
-  .mono { font-family: monospace; }
+  .mono {
+    font-family: monospace;
+  }
 </style>

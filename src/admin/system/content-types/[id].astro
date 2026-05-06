@@ -1,145 +1,251 @@
 ---
-import Layout from '../../layout.astro'
-import { createCachedSystemClient } from '@geniusofdigital/astro-cms/system'
-import type { ContentTypeFieldType } from '@geniusofdigital/astro-cms/system'
-import { env as _cfEnv } from 'cloudflare:workers'
+import Layout from "../../layout.astro";
+import { createCachedSystemClient } from "@geniusofdigital/astro-cms/system";
+import type { ContentTypeFieldType } from "@geniusofdigital/astro-cms/system";
+import { env as _cfEnv } from "cloudflare:workers";
 
-const config = (await import('virtual:astro-cms/config')).default
-const env = _cfEnv as Record<string, unknown>
-const db = env['DB'] as D1Database
-const kv = env['CACHE'] as KVNamespace
-const system = createCachedSystemClient(db, kv)
+const config = (await import("virtual:astro-cms/config")).default;
+const env = _cfEnv as Record<string, unknown>;
+const db = env["DB"] as D1Database;
+const kv = env["CACHE"] as KVNamespace;
+const system = createCachedSystemClient(db, kv);
 
-const { id } = Astro.params as { id: string }
-const ctId = parseInt(id, 10)
+const { id } = Astro.params as { id: string };
+const ctId = parseInt(id, 10);
 
-if (Astro.request.method === 'POST') {
-  const form = await Astro.request.formData()
-  const action = form.get('_action') as string
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const action = form.get("_action") as string;
 
-  if (action === 'addField') {
-    const name = (form.get('name') as string).trim().replace(/\s+/g, '_').toLowerCase()
-    const label = (form.get('label') as string).trim()
-    const type = form.get('type') as ContentTypeFieldType
-    const required = form.get('required') === 'on'
-    const placeholder = (form.get('placeholder') as string | null)?.trim() || undefined
-    const helpText = (form.get('helpText') as string | null)?.trim() || undefined
-    const optionsRaw = (form.get('options') as string | null)?.trim()
-    const options = optionsRaw ? optionsRaw.split('\n').map(s => s.trim()).filter(Boolean) : undefined
-    const existingFields = await system.contentTypes.listFields(ctId)
+  if (action === "addField") {
+    const name = (form.get("name") as string)
+      .trim()
+      .replace(/\s+/g, "_")
+      .toLowerCase();
+    const label = (form.get("label") as string).trim();
+    const type = form.get("type") as ContentTypeFieldType;
+    const required = form.get("required") === "on";
+    const placeholder =
+      (form.get("placeholder") as string | null)?.trim() || undefined;
+    const helpText =
+      (form.get("helpText") as string | null)?.trim() || undefined;
+    const optionsRaw = (form.get("options") as string | null)?.trim();
+    const options = optionsRaw
+      ? optionsRaw
+          .split("\n")
+          .map((s) => s.trim())
+          .filter(Boolean)
+      : undefined;
+    const existingFields = await system.contentTypes.listFields(ctId);
     if (name && label && type) {
-      await system.contentTypes.addField(ctId, { name, label, type, required, placeholder, helpText, options, order: existingFields.length })
+      await system.contentTypes.addField(ctId, {
+        name,
+        label,
+        type,
+        required,
+        placeholder,
+        helpText,
+        options,
+        order: existingFields.length,
+      });
     }
   }
 
-  if (action === 'deleteField') {
-    const fieldId = parseInt(form.get('field_id') as string, 10)
-    await system.contentTypes.deleteField(fieldId)
+  if (action === "deleteField") {
+    const fieldId = parseInt(form.get("field_id") as string, 10);
+    await system.contentTypes.deleteField(fieldId);
   }
 
-  return Astro.redirect(`/admin/system/content-types/${id}`)
+  return Astro.redirect(`/admin/system/content-types/${id}`);
 }
 
-const ct = await system.contentTypes.get(ctId)
-if (!ct) return new Response('Type introuvable', { status: 404 })
+const ct = await system.contentTypes.get(ctId);
+if (!ct) return new Response("Type introuvable", { status: 404 });
 
-const fields = await system.contentTypes.listFields(ctId)
+const fields = await system.contentTypes.listFields(ctId);
 
-const FIELD_TYPES: ContentTypeFieldType[] = ['text', 'richtext', 'textarea', 'number', 'boolean', 'date', 'select', 'email', 'url']
+const FIELD_TYPES: ContentTypeFieldType[] = [
+  "text",
+  "richtext",
+  "textarea",
+  "number",
+  "boolean",
+  "date",
+  "select",
+  "email",
+  "url",
+];
 
 const typeLabels: Record<ContentTypeFieldType, string> = {
-  text:     'Texte court',
-  richtext: 'Texte riche',
-  textarea: 'Texte long',
-  number:   'Nombre',
-  boolean:  'Oui / Non',
-  date:     'Date',
-  select:   'Liste déroulante',
-  email:    'Email',
-  url:      'URL',
-}
-
+  text: "Texte court",
+  richtext: "Texte riche",
+  textarea: "Texte long",
+  number: "Nombre",
+  boolean: "Oui / Non",
+  date: "Date",
+  select: "Liste déroulante",
+  email: "Email",
+  url: "URL",
+};
 ---
 
-<Layout config={config} title={`Champs : ${ct.name}`} activeSystem="content-types" db={db}>
-  <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px">
-    <a href="/admin/system/content-types" style="color:#6b7280; font-size:13px; text-decoration:none">← Content Types</a>
-    <h1 style="font-size:20px; font-weight:600">{ct.name}</h1>
-    <span style="font-size:12px; color:#9ca3af; font-family:monospace">/{ct.slug}</span>
-    <a href={`/admin/${ct.slug}`}
-       style="margin-left:auto; padding:6px 14px; background:#2563eb; color:#fff; border-radius:6px; font-size:13px; font-weight:500; text-decoration:none">
+<Layout
+  config={config}
+  title={`Champs : ${ct.name}`}
+  activeSystem='content-types'
+  db={db}>
+  <div style='display:flex; align-items:center; gap:12px; margin-bottom:24px'>
+    <a
+      href='/admin/system/content-types'
+      style='color:#6b7280; font-size:13px; text-decoration:none'
+      >← Content Types</a
+    >
+    <h1 style='font-size:20px; font-weight:600'>{ct.name}</h1>
+    <span style='font-size:12px; color:#9ca3af; font-family:monospace'
+      >/{ct.slug}</span
+    >
+    <a
+      href={`/admin/${ct.slug}`}
+      style='margin-left:auto; padding:6px 14px; background:#2563eb; color:#fff; border-radius:6px; font-size:13px; font-weight:500; text-decoration:none'>
       Voir les entrées →
     </a>
   </div>
 
-  {ct.description && (
-    <p style="font-size:14px; color:#6b7280; margin-bottom:20px">{ct.description}</p>
-  )}
+  {
+    ct.description && (
+      <p style='font-size:14px; color:#6b7280; margin-bottom:20px'>
+        {ct.description}
+      </p>
+    )
+  }
 
   <!-- Add field form -->
-  <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:24px">
-    <p style="font-size:13px; font-weight:500; color:#374151; margin-bottom:16px">Ajouter un champ</p>
-    <form method="POST">
-      <input type="hidden" name="_action" value="addField" />
+  <div
+    style='background:#fff; border:1px solid #e5e7eb; border-radius:8px; padding:20px; margin-bottom:24px'>
+    <p
+      style='font-size:13px; font-weight:500; color:#374151; margin-bottom:16px'>
+      Ajouter un champ
+    </p>
+    <form method='POST'>
+      <input type='hidden' name='_action' value='addField' />
 
       <!-- Row 1: key, label, type -->
-      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px">
-        <div>
-          <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Clé (identifiant) *</label>
-          <input type="text" name="name" required placeholder="ex: titre, date_pub"
-            style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:monospace" />
-          <p style="font-size:11px; color:#9ca3af; margin-top:3px">Lettres, chiffres, underscore</p>
+      <div
+        style='display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px; margin-bottom:12px'>
+        <div style='width : 100%'>
+          <label
+            style='font-size:12px; color:#6b7280; display:block; margin-bottom:4px'
+            >Clé (identifiant) *</label
+          >
+          <input
+            type='text'
+            name='name'
+            required
+            placeholder='ex: titre, date_pub'
+            style='width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:monospace'
+          />
+          <p style='font-size:11px; color:#9ca3af; margin-top:3px'>
+            Lettres, chiffres, underscore
+          </p>
         </div>
 
         <div>
-          <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Label affiché *</label>
-          <input type="text" name="label" required placeholder="ex: Titre de l'article"
-            style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+          <label
+            style='font-size:12px; color:#6b7280; display:block; margin-bottom:4px'
+            >Label affiché *</label
+          >
+          <input
+            type='text'
+            name='label'
+            required
+            placeholder="ex: Titre de l'article"
+            style='width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px'
+          />
         </div>
 
         <div>
-          <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Type de champ *</label>
-          <select name="type" required id="field-type"
-            style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; background:#fff">
-            {FIELD_TYPES.map(t => <option value={t}>{typeLabels[t]}</option>)}
+          <label
+            style='font-size:12px; color:#6b7280; display:block; margin-bottom:4px'
+            >Type de champ *</label
+          >
+          <select
+            name='type'
+            required
+            id='field-type'
+            style='width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; background:#fff'>
+            {FIELD_TYPES.map((t) => <option value={t}>{typeLabels[t]}</option>)}
           </select>
         </div>
       </div>
 
       <!-- Row 2: placeholder, help text -->
-      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px">
+      <div
+        style='display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px'>
         <div>
-          <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Placeholder</label>
-          <input type="text" name="placeholder" placeholder="Texte affiché dans le champ vide"
-            style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+          <label
+            style='font-size:12px; color:#6b7280; display:block; margin-bottom:4px'
+            >Placeholder</label
+          >
+          <input
+            type='text'
+            name='placeholder'
+            placeholder='Texte affiché dans le champ vide'
+            style='width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px'
+          />
         </div>
 
         <div>
-          <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">Texte d'aide</label>
-          <input type="text" name="helpText" placeholder="Description affichée sous le champ"
-            style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px" />
+          <label
+            style='font-size:12px; color:#6b7280; display:block; margin-bottom:4px'
+            >Texte d'aide</label
+          >
+          <input
+            type='text'
+            name='helpText'
+            placeholder='Description affichée sous le champ'
+            style='width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px'
+          />
         </div>
       </div>
 
       <!-- Row 3: options (select) + required -->
-      <div style="display:grid; grid-template-columns:2fr 1fr; gap:12px; margin-bottom:14px">
+      <div
+        style='display:grid; grid-template-columns:2fr 1fr; gap:12px; margin-bottom:14px'>
         <div>
-          <label style="font-size:12px; color:#6b7280; display:block; margin-bottom:4px">
-            Options <span style="color:#9ca3af">(une par ligne — pour liste déroulante)</span>
+          <label
+            style='font-size:12px; color:#6b7280; display:block; margin-bottom:4px'>
+            Options <span style='color:#9ca3af'
+              >(une par ligne — pour liste déroulante)</span
+            >
           </label>
-          <textarea name="options" rows="3" placeholder={"Option 1\nOption 2\nOption 3"}
-            style="width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:monospace; resize:vertical"></textarea>
+          <textarea
+            name='options'
+            rows='3'
+            placeholder={"Option 1\nOption 2\nOption 3"}
+            style='width:100%; padding:8px 12px; border:1px solid #d1d5db; border-radius:6px; font-size:14px; font-family:monospace; resize:vertical'
+          ></textarea>
         </div>
 
-        <div style="display:flex; align-items:center; gap:8px; padding-top:20px">
-          <input type="checkbox" name="required" id="field-required" style="width:16px; height:16px; cursor:pointer" />
-          <label for="field-required" style="font-size:14px; color:#374151; cursor:pointer">Champ obligatoire</label>
+        <div
+          style='display:flex; align-items:center; gap:8px; padding-top:20px'>
+          <input
+            type='checkbox'
+            name='required'
+            id='field-required'
+            style='width:16px; height:16px; cursor:pointer'
+          />
+          <label
+            for='field-required'
+            style='font-size:14px; color:#374151; cursor:pointer'
+            >Champ obligatoire</label
+          >
         </div>
       </div>
 
-      <div style="display:flex; justify-content:flex-end">
-        <button type="submit"
-          style="padding:8px 20px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer">
+      <div style='display:flex; justify-content:flex-end'>
+        <button
+          type='submit'
+          style='padding:8px 20px; background:#2563eb; color:#fff; border:none; border-radius:6px; font-size:14px; font-weight:500; cursor:pointer'>
           + Ajouter le champ
         </button>
       </div>
@@ -147,79 +253,121 @@ const typeLabels: Record<ContentTypeFieldType, string> = {
   </div>
 
   <!-- Fields list -->
-  {fields.length === 0 ? (
-    <div style="text-align:center; padding:60px; color:#9ca3af">
-      <p style="font-size:16px">Aucun champ défini.</p>
-      <p style="font-size:13px; margin-top:6px">Ajoutez des champs ci-dessus pour pouvoir saisir des entrées.</p>
-    </div>
-  ) : (
-    <div style="background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden">
-      <div style="background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:10px 16px">
-        <p style="font-size:13px; font-weight:600; color:#374151">
-          {fields.length} champ{fields.length !== 1 ? 's' : ''}
+  {
+    fields.length === 0 ? (
+      <div style='text-align:center; padding:60px; color:#9ca3af'>
+        <p style='font-size:16px'>Aucun champ défini.</p>
+        <p style='font-size:13px; margin-top:6px'>
+          Ajoutez des champs ci-dessus pour pouvoir saisir des entrées.
         </p>
       </div>
-      <table style="width:100%; border-collapse:collapse; font-size:14px">
-        <thead>
-          <tr style="border-bottom:1px solid #e5e7eb">
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280; width:32px">#</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Clé</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Label</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Type</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Placeholder</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Aide</th>
-            <th style="padding:10px 16px; text-align:left; font-weight:500; color:#6b7280">Options</th>
-            <th style="padding:10px 16px; text-align:center; font-weight:500; color:#6b7280">Requis</th>
-            <th style="padding:10px 16px; text-align:right; font-weight:500; color:#6b7280">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {fields.map((field) => {
-            let parsedOptions: string[] = []
-            try { parsedOptions = field.options ? JSON.parse(field.options) : [] } catch {}
-            return (
-              <tr style="border-bottom:1px solid #f3f4f6">
-                <td style="padding:10px 16px; color:#9ca3af; font-size:13px">{field.order_index}</td>
-                <td style="padding:10px 16px; font-family:monospace; font-size:12px; color:#6b7280">{field.name}</td>
-                <td style="padding:10px 16px; font-weight:500">{field.label}</td>
-                <td style="padding:10px 16px">
-                  <span style="display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:500; background:#f0f4ff; color:#2563eb">
-                    {typeLabels[field.type] ?? field.type}
-                  </span>
-                </td>
-                <td style="padding:10px 16px; font-size:13px; color:#6b7280; font-style:italic">
-                  {field.placeholder ?? <span style="color:#d1d5db">—</span>}
-                </td>
-                <td style="padding:10px 16px; font-size:13px; color:#9ca3af; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">
-                  {field.help_text ?? <span style="color:#d1d5db">—</span>}
-                </td>
-                <td style="padding:10px 16px; font-size:12px; color:#6b7280">
-                  {parsedOptions.length > 0
-                    ? parsedOptions.join(', ')
-                    : <span style="color:#d1d5db">—</span>}
-                </td>
-                <td style="padding:10px 16px; text-align:center">
-                  {field.required ? (
-                    <span style="color:#2563eb; font-size:13px; font-weight:600">✓</span>
-                  ) : (
-                    <span style="color:#d1d5db">—</span>
-                  )}
-                </td>
-                <td style="padding:10px 16px; text-align:right">
-                  <form method="POST" style="display:inline" onsubmit="return confirm('Supprimer ce champ ?')">
-                    <input type="hidden" name="_action" value="deleteField" />
-                    <input type="hidden" name="field_id" value={String(field.id)} />
-                    <button type="submit"
-                      style="background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer">
-                      Supprimer
-                    </button>
-                  </form>
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )}
+    ) : (
+      <div style='background:#fff; border:1px solid #e5e7eb; border-radius:8px; overflow:hidden'>
+        <div style='background:#f9fafb; border-bottom:1px solid #e5e7eb; padding:10px 16px'>
+          <p style='font-size:13px; font-weight:600; color:#374151'>
+            {fields.length} champ{fields.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+        <table style='width:100%; border-collapse:collapse; font-size:14px'>
+          <thead>
+            <tr style='border-bottom:1px solid #e5e7eb'>
+              <th style='padding:10px 16px; text-align:left; font-weight:500; color:#6b7280; width:32px'>
+                #
+              </th>
+              <th style='padding:10px 16px; text-align:left; font-weight:500; color:#6b7280'>
+                Clé
+              </th>
+              <th style='padding:10px 16px; text-align:left; font-weight:500; color:#6b7280'>
+                Label
+              </th>
+              <th style='padding:10px 16px; text-align:left; font-weight:500; color:#6b7280'>
+                Type
+              </th>
+              <th style='padding:10px 16px; text-align:left; font-weight:500; color:#6b7280'>
+                Placeholder
+              </th>
+              <th style='padding:10px 16px; text-align:left; font-weight:500; color:#6b7280'>
+                Aide
+              </th>
+              <th style='padding:10px 16px; text-align:left; font-weight:500; color:#6b7280'>
+                Options
+              </th>
+              <th style='padding:10px 16px; text-align:center; font-weight:500; color:#6b7280'>
+                Requis
+              </th>
+              <th style='padding:10px 16px; text-align:right; font-weight:500; color:#6b7280'>
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {fields.map((field) => {
+              let parsedOptions: string[] = [];
+              try {
+                parsedOptions = field.options ? JSON.parse(field.options) : [];
+              } catch {}
+              return (
+                <tr style='border-bottom:1px solid #f3f4f6'>
+                  <td style='padding:10px 16px; color:#9ca3af; font-size:13px'>
+                    {field.order_index}
+                  </td>
+                  <td style='padding:10px 16px; font-family:monospace; font-size:12px; color:#6b7280'>
+                    {field.name}
+                  </td>
+                  <td style='padding:10px 16px; font-weight:500'>
+                    {field.label}
+                  </td>
+                  <td style='padding:10px 16px'>
+                    <span style='display:inline-block; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:500; background:#f0f4ff; color:#2563eb'>
+                      {typeLabels[field.type] ?? field.type}
+                    </span>
+                  </td>
+                  <td style='padding:10px 16px; font-size:13px; color:#6b7280; font-style:italic'>
+                    {field.placeholder ?? <span style='color:#d1d5db'>—</span>}
+                  </td>
+                  <td style='padding:10px 16px; font-size:13px; color:#9ca3af; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap'>
+                    {field.help_text ?? <span style='color:#d1d5db'>—</span>}
+                  </td>
+                  <td style='padding:10px 16px; font-size:12px; color:#6b7280'>
+                    {parsedOptions.length > 0 ? (
+                      parsedOptions.join(", ")
+                    ) : (
+                      <span style='color:#d1d5db'>—</span>
+                    )}
+                  </td>
+                  <td style='padding:10px 16px; text-align:center'>
+                    {field.required ? (
+                      <span style='color:#2563eb; font-size:13px; font-weight:600'>
+                        ✓
+                      </span>
+                    ) : (
+                      <span style='color:#d1d5db'>—</span>
+                    )}
+                  </td>
+                  <td style='padding:10px 16px; text-align:right'>
+                    <form
+                      method='POST'
+                      style='display:inline'
+                      onsubmit="return confirm('Supprimer ce champ ?')">
+                      <input type='hidden' name='_action' value='deleteField' />
+                      <input
+                        type='hidden'
+                        name='field_id'
+                        value={String(field.id)}
+                      />
+                      <button
+                        type='submit'
+                        style='background:none; border:none; color:#ef4444; font-size:13px; cursor:pointer'>
+                        Supprimer
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    )
+  }
 </Layout>
