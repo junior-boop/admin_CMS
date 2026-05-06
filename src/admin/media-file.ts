@@ -1,6 +1,6 @@
 import { env as _cfEnv } from 'cloudflare:workers'
 
-export const GET = async ({ params, request }: { params: { key: string }; request: Request }) => {
+export const GET = async ({ params }: { params: { key: string }; request: Request }) => {
   const env = _cfEnv as Record<string, unknown>
   const bucket = env['BUCKET'] as R2Bucket | undefined
 
@@ -8,7 +8,7 @@ export const GET = async ({ params, request }: { params: { key: string }; reques
     return new Response('R2 bucket not configured', { status: 500 })
   }
 
-  const key = params.key
+  const key = params.key  // With [...key], this is the full path e.g. "uploads/filename.png"
   const file = await bucket.get(key)
 
   if (!file) {
