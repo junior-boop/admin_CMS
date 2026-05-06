@@ -1,4 +1,4 @@
-export declare const GET: ({ params, request }: {
+export declare const GET: ({ params }: {
     params: {
         key: string;
     };

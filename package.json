@@ -44,15 +44,11 @@
     "typecheck": "tsc -p tsconfig.runtime.json --noEmit && tsc -p tsconfig.cli.json --noEmit && tsc -p tsconfig.astro.json --noEmit"
   },
   "dependencies": {
-    "@astrojs/react": "^5.0.4",
     "@tiptap/core": "^3.22.5",
     "@tiptap/extension-placeholder": "^3.22.5",
     "@tiptap/pm": "^3.22.5",
-    "@tiptap/react": "^3.22.5",
     "@tiptap/starter-kit": "^3.22.5",
     "jiti": "^2.6.1",
-    "react": "^19.2.5",
-    "react-dom": "^19.2.5",
     "zod": "^3.23.0"
   },
   "devDependencies": {

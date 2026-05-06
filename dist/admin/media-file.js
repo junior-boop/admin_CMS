@@ -1,11 +1,11 @@
 import { env as _cfEnv } from 'cloudflare:workers';
-export const GET = async ({ params, request }) => {
+export const GET = async ({ params }) => {
     const env = _cfEnv;
     const bucket = env['BUCKET'];
     if (!bucket) {
         return new Response('R2 bucket not configured', { status: 500 });
     }
-    const key = params.key;
+    const key = params.key; // With [...key], this is the full path e.g. "uploads/filename.png"
     const file = await bucket.get(key);
     if (!file) {
         return new Response('File not found', { status: 404 });

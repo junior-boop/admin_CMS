@@ -7,7 +7,7 @@ import type {
   ContentTypeField,
 } from "@geniusofdigital/astro-cms/system";
 import { env as _cfEnv } from "cloudflare:workers";
-import RichTextEditor from "./components/RichTextEditor";
+import RichTextEditor from "./components/RichTextEditor.astro";
 
 const config = (await import("virtual:astro-cms/config")).default;
 const { collection, id } = Astro.params as { collection: string; id?: string };
@@ -102,8 +102,6 @@ if (Astro.request.method === "POST") {
   return Astro.redirect(`/admin/${collection}`);
 }
 
-console.log("Dynamic fields:", dynamicFields);
-
 const label = isStatic
   ? collection.charAt(0).toUpperCase() + collection.slice(1)
   : dynamicType!.name;
@@ -142,7 +140,6 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
                     {field.type === "richtext" ? (
                       <RichTextEditor
                         name={fieldName}
-                        client:only='react'
                         initialValue={value}
                       />
                     ) : field.type === "boolean" ? (
@@ -245,7 +242,6 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
                   {field.type === "richtext" ? (
                     <RichTextEditor
                       name={field.name}
-                      client:only='react'
                       initialValue={value}
                     />
                   ) : field.type === "textarea" ? (
