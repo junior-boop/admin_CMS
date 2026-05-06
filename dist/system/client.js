@@ -337,10 +337,14 @@ function entriesClient(db) {
 }
 // ─── Media ────────────────────────────────────────────────────────────────────
 function mediaDbClient(db) {
+    const SELECT_MEDIA = `
+    SELECT id, key, filename, content_type AS contentType, size, url, alt,
+           created_at AS createdAt, updated_at AS updatedAt
+    FROM cms_media`;
     return {
         async list(limit = 50, offset = 0) {
             const r = await db
-                .prepare('SELECT * FROM cms_media ORDER BY created_at DESC LIMIT ? OFFSET ?')
+                .prepare(`${SELECT_MEDIA} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
                 .bind(limit, offset).all();
             return r.results;
         },
@@ -348,7 +352,9 @@ function mediaDbClient(db) {
             const t = now();
             const r = await db
                 .prepare(`INSERT INTO cms_media (key, filename, content_type, size, url, alt, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                  RETURNING id, key, filename, content_type AS contentType, size, url, alt,
+                            created_at AS createdAt, updated_at AS updatedAt`)
                 .bind(data.key, data.filename, data.contentType, data.size, data.url, data.alt ?? null, t, t)
                 .first();
             if (!r)

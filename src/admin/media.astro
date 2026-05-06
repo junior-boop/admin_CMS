@@ -45,7 +45,7 @@ if (Astro.request.method === 'POST') {
 const mediaList = await system.mediaDb.list()
 ---
 
-<Layout config={config} title="Media Library" activeSystem="media">
+<Layout config={config} title="Media Library" activeSystem="media" db={db}>
   <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px">
     <h1 style="font-size:22px; font-weight:600">Media Library</h1>
     <label style="

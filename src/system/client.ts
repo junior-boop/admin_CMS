@@ -10,13 +10,6 @@ import type {
 
 function now() { return new Date().toISOString() }
 
-type CacheClient = {
-  get<T = unknown>(key: string): Promise<T | null>
-  set<T = unknown>(key: string, value: T, ttlSeconds?: number): Promise<void>
-  invalidate(key: string): Promise<void>
-  invalidatePattern(prefix: string): Promise<void>
-}
-
 type StateManager = {
   getOrFetch<T>(key: string, fetcher: () => Promise<T>, options?: { ttlSeconds?: number; useCache?: boolean }): Promise<T>
   invalidate(key: string): Promise<void>
@@ -400,10 +393,15 @@ function entriesClient(db: D1Database) {
 // ─── Media ────────────────────────────────────────────────────────────────────
 
 function mediaDbClient(db: D1Database) {
+  const SELECT_MEDIA = `
+    SELECT id, key, filename, content_type AS contentType, size, url, alt,
+           created_at AS createdAt, updated_at AS updatedAt
+    FROM cms_media`
+
   return {
     async list(limit = 50, offset = 0): Promise<MediaEntry[]> {
       const r = await db
-        .prepare('SELECT * FROM cms_media ORDER BY created_at DESC LIMIT ? OFFSET ?')
+        .prepare(`${SELECT_MEDIA} ORDER BY created_at DESC LIMIT ? OFFSET ?`)
         .bind(limit, offset).all<MediaEntry>()
       return r.results
     },
@@ -412,7 +410,9 @@ function mediaDbClient(db: D1Database) {
       const t = now()
       const r = await db
         .prepare(`INSERT INTO cms_media (key, filename, content_type, size, url, alt, created_at, updated_at)
-                  VALUES (?, ?, ?, ?, ?, ?, ?, ?) RETURNING *`)
+                  VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                  RETURNING id, key, filename, content_type AS contentType, size, url, alt,
+                            created_at AS createdAt, updated_at AS updatedAt`)
         .bind(data.key, data.filename, data.contentType, data.size, data.url, data.alt ?? null, t, t)
         .first<MediaEntry>()
       if (!r) throw new Error('Failed to save media entry')
