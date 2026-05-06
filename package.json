@@ -1,6 +1,6 @@
 {
   "name": "@geniusofdigital/astro-cms",
-  "version": "0.1.25",
+  "version": "0.1.26",
   "description": "A type-safe CMS runtime for Astro + Cloudflare (D1, R2, KV)",
   "license": "MIT",
   "type": "module",
