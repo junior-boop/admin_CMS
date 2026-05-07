@@ -1,0 +1,519 @@
+---
+interface Props {
+  name: string
+  initialValue?: string
+  required?: boolean
+  fieldId?: string
+}
+const { name, initialValue = '', required = false, fieldId = name } = Astro.props
+const safeId = fieldId.replace(/[^a-zA-Z0-9_-]/g, '_')
+---
+
+<div class='media-picker-wrapper' data-media-picker data-field-id={safeId}>
+  <input
+    type='hidden'
+    name={name}
+    id={`${safeId}-value`}
+    value={initialValue}
+    required={required}
+  />
+
+  <div class='media-picker-ui'>
+    <div class='media-picker-preview' id={`${safeId}-preview`}>
+      {
+        initialValue ? (
+          <img src={initialValue} alt='Média sélectionné' class='media-thumb' />
+        ) : (
+          <div class='media-placeholder'>
+            <svg
+              width='24'
+              height='24'
+              viewBox='0 0 24 24'
+              fill='none'
+              stroke='currentColor'
+              stroke-width='1.5'>
+              <rect x='3' y='3' width='18' height='18' rx='2' />
+              <circle cx='8.5' cy='8.5' r='1.5' />
+              <polyline points='21 15 16 10 5 21' />
+            </svg>
+          </div>
+        )
+      }
+    </div>
+
+    <button type='button' class='media-picker-btn' id={`${safeId}-open-btn`}>
+      {initialValue ? 'Changer le média' : 'Choisir un média'}
+    </button>
+
+    {
+      initialValue && (
+        <button type='button' class='media-clear-btn' id={`${safeId}-clear-btn`}>
+          ✕ Retirer
+        </button>
+      )
+    }
+  </div>
+
+  <dialog id={`modal-media-${safeId}`} class='media-modal'>
+    <div class='media-modal-content'>
+      <div class='media-modal-header'>
+        <h2>Médiathèque</h2>
+        <button
+          type='button'
+          class='modal-close-btn'
+          id={`${safeId}-close-btn`}>
+          ✕
+        </button>
+      </div>
+
+      <div class='media-modal-upload'>
+        <label class='upload-area'>
+          <svg
+            width='20'
+            height='20'
+            viewBox='0 0 24 24'
+            fill='none'
+            stroke='currentColor'
+            stroke-width='2'>
+            <polyline points='16 16 12 12 8 16' />
+            <line x1='12' y1='12' x2='12' y2='21' />
+            <path d='M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3' />
+          </svg>
+          Uploader un fichier
+          <input
+            type='file'
+            accept='image/*,video/*,application/pdf'
+            class='upload-file-input'
+          />
+        </label>
+        <span class='upload-hint'>Images, vidéos, PDF</span>
+      </div>
+
+      <div class='media-modal-grid' id={`${safeId}-grid`}>
+        <p class='grid-loading'>Chargement...</p>
+      </div>
+
+      <div class='media-modal-footer'>
+        <button type='button' class='btn-cancel' id={`${safeId}-cancel-btn`}>
+          Annuler
+        </button>
+      </div>
+    </div>
+  </dialog>
+</div>
+
+<script>
+  type MediaEntry = {
+    id: number
+    url: string
+    filename: string
+    contentType: string
+    size: number
+  }
+
+  function initPicker(wrapper: HTMLElement) {
+    const fieldId = wrapper.getAttribute('data-field-id')!
+    const modal = document.getElementById(`modal-media-${fieldId}`) as HTMLDialogElement
+    const grid = document.getElementById(`${fieldId}-grid`)!
+    const hiddenInput = document.getElementById(`${fieldId}-value`) as HTMLInputElement
+    const preview = document.getElementById(`${fieldId}-preview`)!
+    const openBtn = document.getElementById(`${fieldId}-open-btn`) as HTMLButtonElement
+    const closeBtn = document.getElementById(`${fieldId}-close-btn`) as HTMLButtonElement
+    const cancelBtn = document.getElementById(`${fieldId}-cancel-btn`) as HTMLButtonElement
+    const clearBtn = document.getElementById(`${fieldId}-clear-btn`) as HTMLButtonElement | null
+    const fileInput = wrapper.querySelector('.upload-file-input') as HTMLInputElement
+
+    let loaded = false
+
+    openBtn.addEventListener('click', async () => {
+      modal.showModal()
+      if (!loaded) {
+        await refreshGrid()
+        loaded = true
+      }
+    })
+
+    closeBtn.addEventListener('click', () => modal.close())
+    cancelBtn.addEventListener('click', () => modal.close())
+    modal.addEventListener('click', (e) => { if (e.target === modal) modal.close() })
+
+    clearBtn?.addEventListener('click', () => {
+      hiddenInput.value = ''
+      renderPreview(null)
+      openBtn.textContent = 'Choisir un média'
+    })
+
+    fileInput.addEventListener('change', async () => {
+      if (!fileInput.files?.length) return
+      const file = fileInput.files[0]!
+      const formData = new FormData()
+      formData.append('file', file)
+
+      grid.innerHTML = '<p class="grid-loading">Upload en cours…</p>'
+      loaded = false
+
+      try {
+        await fetch('/admin/api/media', { method: 'POST', body: formData })
+        await refreshGrid()
+        loaded = true
+      } catch {
+        grid.innerHTML = '<p class="grid-error">Erreur lors de l\'upload.</p>'
+      }
+      fileInput.value = ''
+    })
+
+    async function refreshGrid() {
+      grid.innerHTML = '<p class="grid-loading">Chargement…</p>'
+      try {
+        const res = await fetch('/admin/api/media')
+        const list = (await res.json()) as MediaEntry[]
+        renderGrid(list)
+      } catch {
+        grid.innerHTML = '<p class="grid-error">Erreur de chargement.</p>'
+      }
+    }
+
+    function renderGrid(list: MediaEntry[]) {
+      if (list.length === 0) {
+        grid.innerHTML = '<p class="grid-empty">Aucun média. Uploadez votre premier fichier.</p>'
+        return
+      }
+
+      grid.innerHTML = ''
+      for (const m of list) {
+        const item = document.createElement('div')
+        item.className = 'media-grid-item'
+        if (hiddenInput.value === m.url) item.classList.add('selected')
+
+        const thumb = m.contentType.startsWith('image/')
+          ? `<img src="${m.url}" alt="${m.filename}" class="grid-thumb" />`
+          : `<div class="grid-thumb-placeholder"><span>${m.contentType.split('/')[1]?.toUpperCase()}</span></div>`
+
+        item.innerHTML = `
+          ${thumb}
+          <div class="grid-item-info">
+            <span class="grid-item-name">${m.filename}</span>
+            <span class="grid-item-size">${Math.round(m.size / 1024)} KB</span>
+          </div>
+          <div class="grid-item-check">✓</div>
+        `
+
+        item.addEventListener('click', () => {
+          hiddenInput.value = m.url
+          renderPreview(m)
+          openBtn.textContent = 'Changer le média'
+          modal.close()
+        })
+
+        grid.appendChild(item)
+      }
+    }
+
+    function renderPreview(m: MediaEntry | null) {
+      if (!m) {
+        preview.innerHTML = `
+          <div class="media-placeholder">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <rect x="3" y="3" width="18" height="18" rx="2"/>
+              <circle cx="8.5" cy="8.5" r="1.5"/>
+              <polyline points="21 15 16 10 5 21"/>
+            </svg>
+          </div>`
+        return
+      }
+      if (m.contentType.startsWith('image/')) {
+        preview.innerHTML = `<img src="${m.url}" alt="${m.filename}" class="media-thumb" />`
+      } else {
+        preview.innerHTML = `<div class="media-file-preview"><span>${m.filename}</span></div>`
+      }
+    }
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll<HTMLElement>('[data-media-picker]').forEach(initPicker)
+  })
+</script>
+
+<style>
+  .media-picker-wrapper {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .media-picker-ui {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .media-picker-preview {
+    width: 56px;
+    height: 56px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    overflow: hidden;
+    flex-shrink: 0;
+    background: var(--surface-elevated, #f9fafb);
+  }
+  .media-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .media-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-light, #9ca3af);
+  }
+  .media-file-preview {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--text-light, #6b7280);
+    padding: 4px;
+    text-align: center;
+    overflow: hidden;
+  }
+  .media-picker-btn {
+    padding: 9px 16px;
+    border: 1.5px solid var(--primary, #6366f1);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--primary, #6366f1);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .media-picker-btn:hover {
+    background: rgb(99 102 241 / 0.08);
+  }
+  .media-clear-btn {
+    background: none;
+    border: none;
+    color: var(--danger, #ef4444);
+    font-size: 12px;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .media-clear-btn:hover {
+    background: rgb(239 68 68 / 0.08);
+  }
+
+  /* ── Modal ── */
+  .media-modal {
+    border: none;
+    border-radius: 16px;
+    padding: 0;
+    background: var(--surface, #fff);
+    width: 70vw;
+    height: 80vh;
+    max-width: 900px;
+    max-height: 90vh;
+    box-shadow: 0 25px 60px -12px rgb(0 0 0 / 0.3);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .media-modal::backdrop {
+    background: rgb(0 0 0 / 0.5);
+    backdrop-filter: blur(4px);
+  }
+  .media-modal-content {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+  .media-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    flex-shrink: 0;
+  }
+  .media-modal-header h2 {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--text, #111827);
+  }
+  .modal-close-btn {
+    background: none;
+    border: none;
+    font-size: 16px;
+    color: var(--text-light, #6b7280);
+    cursor: pointer;
+    padding: 6px 8px;
+    border-radius: 6px;
+    transition: background 0.15s;
+    line-height: 1;
+  }
+  .modal-close-btn:hover {
+    background: var(--surface-elevated, #f3f4f6);
+    color: var(--text, #111827);
+  }
+  .media-modal-upload {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 24px;
+    background: var(--surface-elevated, #f9fafb);
+    border-bottom: 1px solid var(--border, #e5e7eb);
+    flex-shrink: 0;
+  }
+  .upload-area {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: var(--primary, #6366f1);
+    color: #fff;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: opacity 0.15s;
+  }
+  .upload-area:hover {
+    opacity: 0.9;
+  }
+  .upload-file-input {
+    display: none;
+  }
+  .upload-hint {
+    font-size: 12px;
+    color: var(--text-light, #9ca3af);
+  }
+  .media-modal-grid {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    align-content: start;
+  }
+  .grid-loading,
+  .grid-empty,
+  .grid-error {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 40px;
+    font-size: 14px;
+    color: var(--text-light, #9ca3af);
+  }
+  .grid-error {
+    color: var(--danger, #ef4444);
+  }
+  .media-grid-item {
+    border: 2px solid var(--border, #e5e7eb);
+    border-radius: 10px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.15s;
+    position: relative;
+    background: var(--surface-elevated, #f9fafb);
+  }
+  .media-grid-item:hover {
+    border-color: var(--primary, #6366f1);
+    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.1);
+  }
+  .media-grid-item.selected {
+    border-color: var(--primary, #6366f1);
+    box-shadow: 0 0 0 3px rgb(99 102 241 / 0.2);
+  }
+  .grid-thumb {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+  }
+  .grid-thumb-placeholder {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--surface-elevated, #f3f4f6);
+    color: var(--text-light, #9ca3af);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+  }
+  .grid-item-info {
+    padding: 8px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .grid-item-name {
+    font-size: 11px;
+    color: var(--text, #374151);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: block;
+  }
+  .grid-item-size {
+    font-size: 10px;
+    color: var(--text-light, #9ca3af);
+  }
+  .grid-item-check {
+    display: none;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    background: var(--primary, #6366f1);
+    color: #fff;
+    font-size: 12px;
+    align-items: center;
+    justify-content: center;
+  }
+  .media-grid-item.selected .grid-item-check {
+    display: flex;
+  }
+  .media-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    padding: 14px 24px;
+    border-top: 1px solid var(--border, #e5e7eb);
+    flex-shrink: 0;
+  }
+  .btn-cancel {
+    padding: 9px 18px;
+    border: 1px solid var(--border, #d1d5db);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted, #6b7280);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-cancel:hover {
+    background: var(--surface-elevated, #f3f4f6);
+  }
+
+  @media (max-width: 640px) {
+    .media-modal {
+      width: 95vw;
+      height: 90vh;
+    }
+    .media-modal-grid {
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    }
+  }
+</style>

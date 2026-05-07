@@ -63,6 +63,7 @@ export function cms(config: CMSConfig): AstroIntegration {
 
         // Content routes
         route('/admin',                     `${adminDir}/index.astro`)
+        route('/admin/api/media',           `${adminDir}/api/media.ts`)
         route('/admin/media',               `${adminDir}/media.astro`)
         route('/media/[...key]',            `${adminDir}/media-file.ts`)
         route('/admin/[collection]',        `${adminDir}/collection.astro`)

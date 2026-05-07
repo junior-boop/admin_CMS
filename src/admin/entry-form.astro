@@ -8,6 +8,7 @@ import type {
 } from "@geniusofdigital/astro-cms/system";
 import { env as _cfEnv } from "cloudflare:workers";
 import RichTextEditor from "./components/RichTextEditor.astro";
+import MediaPicker from "./components/MediaPicker.astro";
 
 const config = (await import("virtual:astro-cms/config")).default;
 const { collection, id } = Astro.params as { collection: string; id?: string };
@@ -186,6 +187,13 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
                         required={required}
                         class='form-input'
                       />
+                    ) : field.type === "media" ? (
+                      <MediaPicker
+                        name={fieldName}
+                        fieldId={fieldName}
+                        initialValue={value}
+                        required={required}
+                      />
                     ) : (
                       <input
                         type='text'
@@ -318,6 +326,13 @@ const pageTitle = isEdit ? `Modifier — ${label}` : `Nouvelle entrée — ${lab
                       required={required}
                       placeholder={ph ?? "https://"}
                       class='form-input'
+                    />
+                  ) : field.type === "media" ? (
+                    <MediaPicker
+                      name={field.name}
+                      fieldId={`f_${field.id}`}
+                      initialValue={value}
+                      required={required}
                     />
                   ) : (
                     <input
