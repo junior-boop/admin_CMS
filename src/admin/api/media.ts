@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro'
 import { env as _cfEnv } from 'cloudflare:workers'
-import { createCachedSystemClient } from '@geniusofdigital/astro-cms/system'
-import { createMediaClient } from '@geniusofdigital/astro-cms'
+import { createCachedSystemClient } from '../../system/index.js'
+import { createMediaClient } from '../../runtime/media.js'
 
 export const GET: APIRoute = async () => {
   const env = _cfEnv as Record<string, unknown>

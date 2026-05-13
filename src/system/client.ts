@@ -139,10 +139,25 @@ function sectionsClient(db: D1Database) {
 
     async update(id: number, data: Partial<Pick<Section, 'title' | 'content' | 'order' | 'settings'>>): Promise<Section> {
       const t = now()
-      const r = await db
-        .prepare('UPDATE cms_sections SET title=?, content=?, order_index=?, updated_at=? WHERE id=? RETURNING *')
-        .bind(data.title ?? null, data.content ?? null, data.order ?? 0, t, id)
-        .first<Section>()
+      const entries = Object.entries(data)
+      if (entries.length === 0) {
+        const r = await db.prepare('SELECT * FROM cms_sections WHERE id = ?').bind(id).first<Section>()
+        if (!r) throw new Error(`Section ${id} not found`)
+        return r
+      }
+
+      const ALLOWED_COLUMNS = ['title', 'content', 'order', 'settings']
+      const setClauses = entries.map(([k]) => {
+        if (!ALLOWED_COLUMNS.includes(k)) {
+          throw new Error(`Invalid column: ${k}`)
+        }
+        const col = k === 'order' ? 'order_index' : k
+        return `${col} = ?`
+      })
+      const values = entries.map(([, v]) => (typeof v === 'object' && v !== null) ? JSON.stringify(v) : v)
+
+      const sql = `UPDATE cms_sections SET ${setClauses.join(', ')}, updated_at = ? WHERE id = ? RETURNING *`
+      const r = await db.prepare(sql).bind(...values, t, id).first<Section>()
       if (!r) throw new Error(`Section ${id} not found`)
       return r
     },
